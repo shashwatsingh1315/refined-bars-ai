@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;800;900&display=swap');
+
+:root {
+  --bg: #fff;
+  --main: #A3E635;
+  /* Lime */
+  --main-accent: #84cc16;
+  --secondary: #FFD600;
+  /* Yellow */
+  --tertiary: #FF6B6B;
+  /* Pinkish Red */
+  --quat: #00D1FF;
+  /* Cyan */
+  --black: #000000;
+  --white: #ffffff;
+  --border-width: 3px;
+  --shadow-offset: 6px;
+}
+
+body {
+  font-family: 'Public Sans', 'Inter', sans-serif;
+  color: var(--black);
+  background-color: #f0f0f0;
+  background-image: radial-gradient(var(--black) 1px, transparent 0);
+  background-size: 24px 24px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.neo-brutalism-box {
+  background-color: var(--white);
+  border: var(--border-width) solid var(--black);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0px 0px var(--black);
+  transition: all 0.2s ease;
+}
+
+.neo-brutalism-box:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0px 0px var(--black);
+}
+
+.neo-brutalism-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: var(--main);
+  border: var(--border-width) solid var(--black);
+  box-shadow: 4px 4px 0px 0px var(--black);
+  transition: all 0.1s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.neo-brutalism-button:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px var(--black);
+}
+
+.neo-brutalism-button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px var(--black);
+}
+
+.neo-brutalism-button:disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: 2px 2px 0px 0px var(--black);
+}
+
+.neo-brutalism-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--white);
+  border: var(--border-width) solid var(--black);
+  font-weight: 600;
+  outline: none;
+  transition: all 0.1s ease;
+}
+
+.neo-brutalism-input:focus {
+  background-color: #fefce8;
+  box-shadow: 4px 4px 0px 0px var(--black);
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--white);
+  border-left: var(--border-width) solid var(--black);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--black);
+  border: 2px solid var(--white);
+}
+
+.inset-shadow-sm {
+  box-shadow: inset 3px 3px 0px 0px rgba(0, 0, 0, 0.1);
+}

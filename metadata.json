@@ -1,0 +1,7 @@
+{
+  "name": "Refined BARS_Paid",
+  "description": "A robust, client-side interview application using Gemini AI to listen, transcribe, and rate candidate responses based on custom BARS rubrics.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
