@@ -395,25 +395,6 @@ export const generateMasterTranscript = async (
 ): Promise<string> => {
   const prompt = "Please transcribe the following interview audio files verbatim. Combine them into a single chronological transcript. Label speakers as INTERVIEWER and CANDIDATE if possible, or just transcribe the dialogue directly.";
 
-  // Optimization: Merge blobs of the same MIME type to reduce the number of parts sent to the API.
-  // The API often has a limit on the number of media objects (e.g., 16).
-  const mergedBlobs: { blob: Blob; mimeType: string }[] = [];
-  const blobsByType: Record<string, Blob[]> = {};
-
-  audioBlobs.forEach(item => {
-    if (!blobsByType[item.mimeType]) {
-      blobsByType[item.mimeType] = [];
-    }
-    blobsByType[item.mimeType].push(item.blob);
-  });
-
-  Object.entries(blobsByType).forEach(([mimeType, blobs]) => {
-    mergedBlobs.push({
-      blob: new Blob(blobs, { type: mimeType }),
-      mimeType
-    });
-  });
-
   // Helper to convert blob to base64
   const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -427,7 +408,8 @@ export const generateMasterTranscript = async (
     });
   };
 
-  const audioParts = await Promise.all(mergedBlobs.map(async (item) => ({
+  // Convert each blob individually to base64 and create a part for the API
+  const audioParts = await Promise.all(audioBlobs.map(async (item) => ({
     inlineData: {
       data: await blobToBase64(item.blob),
       mimeType: item.mimeType
@@ -508,12 +490,14 @@ export const regenerateQuestionAnalysis = async (
   })));
 
   const promptText = `
-    This is the FULL audio history for Question: "${rubricItem.question}".
+    This interview response is split across ${audioBlobs.length} separate audio files.
+    They are provided in chronological order.
     
     YOUR TASK:
-    1. Transcribe the entire audio conversation VERBATIM (chronologically).
-    2. Extract the FINAL consolidated STAR evidence for "${rubricItem.parameter}".
-    3. Generate 2-3 specific probing questions IF the evidence is still weak.
+    1. Listen to ALL audio files in the sequence. Each part contains a separate section of the conversation.
+    2. Transcribe the FULL conversation from start to finish, merging all parts into a single coherent transcript.
+    3. Extract the FINAL consolidated STAR evidence for "${rubricItem.parameter}".
+    4. Generate 2-3 specific probing questions IF the evidence is still weak.
     
     Output Format: JSON.
     `;
