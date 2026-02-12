@@ -2,26 +2,30 @@
 
 :root {
   --bg: #fff;
-  --main: #A3E635;
-  /* Lime */
-  --main-accent: #84cc16;
-  --secondary: #FFD600;
-  /* Yellow */
+  --main: #2b7ec2;
+  /* Kimbal Blue */
+  --main-accent: #1c1d1e;
+  /* Dark Accent */
+  --secondary: #DBeffb;
+  /* Light Blue */
   --tertiary: #FF6B6B;
-  /* Pinkish Red */
-  --quat: #00D1FF;
-  /* Cyan */
-  --black: #000000;
+  /* Keep Pink for Alerts/Errors only */
+  --quat: #7cb3e0;
+  /* Mid Blue (Bridge color) */
+  --black: #1c1d1e;
+  /* Soft Black from Accent */
   --white: #ffffff;
   --border-width: 3px;
   --shadow-offset: 6px;
 }
 
 body {
-  font-family: 'Public Sans', 'Inter', sans-serif;
+  font-family: 'Lexend', 'Public Sans', 'Inter', sans-serif;
   color: var(--black);
-  background-color: #f0f0f0;
-  background-image: radial-gradient(var(--black) 1px, transparent 0);
+  background-color: #f8fafc;
+  /* Softer background */
+  background-image: radial-gradient(#cbd5e1 1px, transparent 0);
+  /* Lighter dots */
   background-size: 24px 24px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -83,7 +87,7 @@ body {
 }
 
 .neo-brutalism-input:focus {
-  background-color: #fefce8;
+  background-color: var(--secondary);
   box-shadow: 4px 4px 0px 0px var(--black);
 }
 

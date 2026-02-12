@@ -348,29 +348,53 @@ export const analyzeHolisticSTAR = async (
   settings: AppSettings,
   fullTranscript: string,
   rubric: RubricItem[]
-): Promise<Record<string, STARResult>> => {
-  const truncatedFullTranscript = getRecentTranscript(fullTranscript, 8000);
+): Promise<Record<string, { starEvidence: STARResult; rating: number }>> => {
+  const truncatedFullTranscript = getRecentTranscript(fullTranscript, 12000); // Increased context window
 
   const promptText = `
-    Analyze this transcript and extract STAR evidence for these competencies:
-    ${rubric.map(r => `- ID: ${r.id}, Name: ${r.parameter}`).join('\n')}
+    You are an expert HR Auditor.
+    Objective: Review the ENTIRE interview transcript to extract holistic STAR evidence for specific competencies.
+    
+    CRITICAL INSTRUCTION: 
+    Candidates often scatter evidence across different questions. 
+    You must CROSS-REFERENCE the entire transcript. 
+    If a candidate mentions a "Conflict Resolution" example while answering a "Leadership" question, YOU MUST capture it for the "Conflict Resolution" parameter.
 
-    TRANSCRIPT:
+    PARAMETERS TO ANALYZE:
+    ${rubric.map(r => `
+    --- ID: ${r.id} ---
+    Parameter: ${r.parameter}
+    Question Asked: "${r.question}"
+    Rubric Anchors:
+      1 (Poor): ${r.level1}
+      2 (Fair): ${r.level2}
+      3 (Good): ${r.level3}
+      4 (Excellent): ${r.level4}
+    `).join('\n')}
+
+    FULL TRANSCRIPT:
     ---
     ${truncatedFullTranscript}
     ---
     
-    Instruction: 
-    1. Summarize evidence concisely for each parameter.
-    2. READ BETWEEN THE LINES: Look for inconsistencies, hesitation markers, or overly generic answers. If evidence is weak, rate low.
-    3. Return JSON map.
+    OUTPUT FORMAT:
+    Return a JSON map where keys are the Parameter IDs.
+    Values must be objects with:
+    - starEvidence: { situation, task, action, result }
+    - rating: (1-4 integer based on anchors)
+    
+    RULES:
+    1. READ BETWEEN THE LINES. Look for consistency and depth.
+    2. If evidence is vague or generic, rate lower (1 or 2).
+    3. If evidence is concrete and specific (names, numbers, quotes), rate higher (3 or 4).
+    4. "starEvidence" fields must be strings.
   `;
 
   if (settings.provider === 'openrouter') {
     const rawJson = await callOpenRouter(settings, [{
       role: "user",
       content: [{ type: "text", text: promptText }]
-    }], "Return a JSON object where keys are rubric IDs and values are objects with situation, task, action, result.");
+    }], "Return JSON map: keys=IDs, values={ starEvidence: {situation, task, action, result}, rating: number }");
     return parseCleanJson(rawJson);
   }
 
@@ -384,18 +408,25 @@ export const analyzeHolisticSTAR = async (
     properties[item.id] = {
       type: SchemaType.OBJECT,
       properties: {
-        situation: { type: SchemaType.STRING },
-        task: { type: SchemaType.STRING },
-        action: { type: SchemaType.STRING },
-        result: { type: SchemaType.STRING },
+        starEvidence: {
+          type: SchemaType.OBJECT,
+          properties: {
+            situation: { type: SchemaType.STRING },
+            task: { type: SchemaType.STRING },
+            action: { type: SchemaType.STRING },
+            result: { type: SchemaType.STRING },
+          },
+          required: ["situation", "task", "action", "result"]
+        },
+        rating: { type: SchemaType.NUMBER, description: "1 to 4 integer" }
       },
-      required: ["situation", "task", "action", "result"]
+      required: ["starEvidence", "rating"]
     };
   });
 
   const model = genAI.getGenerativeModel({
     model: settings.modelName,
-    systemInstruction: "Extract STAR evidence concisely. Return JSON map only.",
+    systemInstruction: "Extract holistic STAR evidence and assign ratings (1-4). Return JSON map.",
     generationConfig: {
       temperature: 0.2,
       responseMimeType: "application/json",

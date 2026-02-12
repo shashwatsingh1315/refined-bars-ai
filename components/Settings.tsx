@@ -156,11 +156,11 @@ export const Settings: React.FC = () => {
     <div className="min-h-screen py-16 px-6">
       <div className="max-w-3xl mx-auto space-y-12">
         <div className="space-y-4 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#FF6B6B] border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-secondary border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
             <Briefcase className="w-8 h-8 text-black" />
           </div>
           <h1 className="text-5xl font-black text-black uppercase tracking-tighter">Setup Interview</h1>
-          <p className="text-black font-bold max-w-lg mx-auto text-sm leading-relaxed bg-[#FFD600] border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <p className="text-black font-bold max-w-lg mx-auto text-sm leading-relaxed bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             Configure candidate details, choose your AI provider, and select the specific competencies for this behavioral assessment.
           </p>
         </div>
@@ -169,14 +169,14 @@ export const Settings: React.FC = () => {
         <div className="space-y-8">
           {/* Step 1: Provider & API Configuration */}
           <section className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-            <div className="px-6 py-4 border-b-[3px] border-black flex items-center justify-between bg-[#00D1FF]">
+            <div className="px-6 py-4 border-b-[3px] border-black flex items-center justify-between bg-secondary">
               <span className="text-xs font-black text-black uppercase tracking-widest">1. AI Provider</span>
               {isApiKeyConnected ? (
-                <div className="flex items-center gap-1.5 text-black bg-[#A3E635] border-2 border-black px-3 py-1 text-[10px] font-black">
+                <div className="flex items-center gap-1.5 text-black bg-main border-2 border-black px-3 py-1 text-[10px] font-black">
                   <Check className="w-3 h-3" /> CONNECTED
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 text-black bg-[#FF6B6B] border-2 border-black px-3 py-1 text-[10px] font-black">
+                <div className="flex items-center gap-1.5 text-black bg-tertiary border-2 border-black px-3 py-1 text-[10px] font-black">
                   <AlertTriangle className="w-3 h-3" /> DISCONNECTED
                 </div>
               )}
@@ -188,7 +188,7 @@ export const Settings: React.FC = () => {
                 <button
                   onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-1.5-flash' })}
                   className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'google'
-                    ? 'bg-[#A3E635] translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
                 >
@@ -202,7 +202,7 @@ export const Settings: React.FC = () => {
                 <button
                   onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
                   className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'openrouter'
-                    ? 'bg-[#FFD600] translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
                 >
@@ -277,7 +277,7 @@ export const Settings: React.FC = () => {
                     />
                   </div>
                   {settings.provider === 'openrouter' && (
-                    <p className="text-[10px] text-black font-bold bg-[#FFD600] p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <p className="text-[10px] text-black font-bold bg-secondary p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                       <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-3-flash-preview</code>).
                     </p>
                   )}
@@ -289,7 +289,7 @@ export const Settings: React.FC = () => {
 
           {/* Step 2: Session Details */}
           <section className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-            <div className="px-6 py-4 border-b-[3px] border-black flex items-center gap-3 bg-[#A3E635]">
+            <div className="px-6 py-4 border-b-[3px] border-black flex items-center gap-3 bg-secondary">
               <span className="text-xs font-black text-black uppercase tracking-widest">2. Session Setup</span>
             </div>
             <div className="p-6 grid gap-6 md:grid-cols-2">
@@ -325,7 +325,7 @@ export const Settings: React.FC = () => {
 
           {/* Step 3: Rubric Setup */}
           <section className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-            <div className="px-6 py-4 border-b-[3px] border-black flex items-center justify-between bg-[#FFD600]">
+            <div className="px-6 py-4 border-b-[3px] border-black flex items-center justify-between bg-secondary">
               <span className="text-xs font-black text-black uppercase tracking-widest">3. Select Parameters</span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="bg-white h-8 px-2 text-[10px]">
@@ -341,7 +341,7 @@ export const Settings: React.FC = () => {
             </div>
 
             <div className="p-6">
-              {error && <div className="mb-6 p-4 bg-[#FF6B6B] text-black text-xs font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">{error}</div>}
+              {error && <div className="mb-6 p-4 bg-tertiary text-black text-xs font-bold border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">{error}</div>}
 
               {rawRubric.length === 0 ? (
                 <div className="text-center py-16 border-[3px] border-dashed border-black bg-slate-50">
@@ -351,7 +351,7 @@ export const Settings: React.FC = () => {
               ) : (
                 <div className="space-y-6">
                   <div className="flex justify-between items-center text-xs font-black uppercase text-black mb-4">
-                    <span className="bg-[#A3E635] px-2 py-1 border-2 border-black">{selectedIds.size} parameters selected</span>
+                    <span className="bg-main px-2 py-1 border-2 border-black">{selectedIds.size} parameters selected</span>
                   </div>
 
                   <div className="border-[3px] border-black divide-y-[3px] divide-black overflow-hidden">
@@ -365,17 +365,17 @@ export const Settings: React.FC = () => {
                       return (
                         <div key={competency} className="bg-white">
                           <div
-                            className="flex items-center px-4 py-4 bg-slate-50/50 hover:bg-[#00D1FF]/20 cursor-pointer transition-colors border-b-[3px] border-black last:border-b-0"
+                            className="flex items-center px-4 py-4 bg-slate-50/50 hover:bg-secondary cursor-pointer transition-colors border-b-[3px] border-black last:border-b-0"
                             onClick={() => setExpandedCompetencies(prev => ({ ...prev, [competency]: !prev[competency] }))}
                           >
                             <span className="mr-3 text-black">{isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}</span>
                             <div className="flex items-center gap-3 flex-1" onClick={(e) => { e.stopPropagation(); toggleCompetencySelection(competency, !allSelected); }}>
-                              <div className={`w-6 h-6 border-[3px] border-black flex items-center justify-center transition-colors ${allSelected ? 'bg-[#A3E635]' : someSelected ? 'bg-[#FFD600]' : 'bg-white'}`}>
+                              <div className={`w-6 h-6 border-[3px] border-black flex items-center justify-center transition-colors ${allSelected ? 'bg-main' : someSelected ? 'bg-quat' : 'bg-white'}`}>
                                 {allSelected && <Check className="w-4 h-4 text-black stroke-[4px]" />}
                                 {someSelected && <div className="w-3 h-1 bg-black" />}
                               </div>
                               <span className="text-sm font-black uppercase tracking-tight text-black">{competency}</span>
-                              <span className="text-[10px] font-black text-black ml-auto bg-[#FF6B6B] border-2 border-black px-2 py-0.5">{typedItems.length}</span>
+                              <span className="text-[10px] font-black text-black ml-auto bg-white border-2 border-black px-2 py-0.5">{typedItems.length}</span>
                             </div>
                           </div>
                           {isExpanded && (
@@ -383,10 +383,10 @@ export const Settings: React.FC = () => {
                               {typedItems.map(item => (
                                 <div
                                   key={item.id}
-                                  className={`flex items-start gap-4 px-12 py-4 cursor-pointer transition-colors hover:bg-[#FFD600]/10 ${selectedIds.has(item.id) ? 'bg-[#A3E635]/10' : ''}`}
+                                  className={`flex items-start gap-4 px-12 py-4 cursor-pointer transition-colors hover:bg-secondary/20 ${selectedIds.has(item.id) ? 'bg-main/20' : ''}`}
                                   onClick={() => toggleParameterSelection(item.id)}
                                 >
-                                  <div className={`mt-0.5 w-5 h-5 border-2 border-black flex items-center justify-center transition-colors ${selectedIds.has(item.id) ? 'bg-[#A3E635]' : 'bg-white'}`}>
+                                  <div className={`mt-0.5 w-5 h-5 border-2 border-black flex items-center justify-center transition-colors ${selectedIds.has(item.id) ? 'bg-main' : 'bg-white'}`}>
                                     {selectedIds.has(item.id) && <Check className="w-4 h-4 text-black stroke-[3px]" />}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -428,7 +428,7 @@ export const Settings: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleClearStorage}
-                className="bg-[#FF6B6B] hover:bg-[#FF6B6B]"
+                className="bg-tertiary hover:bg-tertiary"
                 disabled={!storageStats || storageStats.count === 0}
               >
                 <Trash2 className="w-4 h-4 mr-2" /> Clear Backups
@@ -439,7 +439,7 @@ export const Settings: React.FC = () => {
 
           <div className="pt-8 flex flex-col items-center gap-6">
             {!isApiKeyConnected && (
-              <p className="text-xs text-black font-black uppercase bg-[#FF6B6B] px-3 py-1 border-2 border-black">Please connect your {settings.provider === 'google' ? 'Google' : 'OpenRouter'} API key to continue</p>
+              <p className="text-xs text-black font-black uppercase bg-tertiary px-3 py-1 border-2 border-black">Please connect your {settings.provider === 'google' ? 'Google' : 'OpenRouter'} API key to continue</p>
             )}
             <Button size="lg" disabled={!isFormValid} onClick={handleStartInterview} className="w-full max-sm:max-w-none max-w-sm h-16 text-lg">
               Launch Interview <Play className="w-6 h-6 ml-3 fill-current" />
