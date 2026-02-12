@@ -200,7 +200,7 @@ export const Settings: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => settings.provider !== 'openrouter' && updateSettings({ provider: 'openrouter', modelName: 'openai/gpt-4o' })}
+                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
                   className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'openrouter'
                     ? 'bg-[#FFD600] translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
@@ -278,7 +278,7 @@ export const Settings: React.FC = () => {
                   </div>
                   {settings.provider === 'openrouter' && (
                     <p className="text-[10px] text-black font-bold bg-[#FFD600] p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                      <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-flash-1.5</code>, <code>openai/gpt-4o</code>).
+                      <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-3-flash-preview</code>).
                     </p>
                   )}
                 </div>
@@ -315,7 +315,7 @@ export const Settings: React.FC = () => {
                     value={settings.modelName}
                     onChange={(e) => updateSettings({ modelName: e.target.value })}
                     className="neo-brutalism-input pl-12 text-sm"
-                    placeholder={settings.provider === 'google' ? "gemini-1.5-flash" : "google/gemini-flash-1.5"}
+                    placeholder={settings.provider === 'google' ? "gemini-1.5-flash" : "google/gemini-3-flash-preview"}
                   />
                 </div>
               </div>
