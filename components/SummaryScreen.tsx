@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useInterview } from '../context/InterviewContext';
-import { analyzeHolisticSTAR, generateMasterTranscript } from '../services/geminiService';
+import { analyzeHolisticSTAR } from '../services/geminiService';
 import { Button } from './Button';
 import { SettingsModal } from './SettingsModal';
-import { Settings2, Loader2, Download, AlertCircle, Sparkles, ScrollText, UserCircle, CheckCircle2, FileAudio } from 'lucide-react';
+import { Settings2, Download, AlertCircle, ScrollText, UserCircle, FileAudio, FileText } from 'lucide-react';
 import { generatePDF } from '../utils/exportUtils';
 import { STARResult } from '../types';
-import { getSessionAudio } from '../utils/indexedDb';
 
 export const SummaryScreen: React.FC = () => {
   const { rubric, settings, results, updateResult, resetInterview, sessionId } = useInterview();
@@ -112,7 +111,7 @@ export const SummaryScreen: React.FC = () => {
               className="w-full bg-black text-white hover:bg-white hover:text-black justify-between group"
             >
               {isAnalyzing ? "Analyzing..." : "Run AI Analysis"}
-              {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />}
+              {isAnalyzing ? <AlertCircle className="w-5 h-5 animate-spin" /> : <AlertCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />}
             </Button>
           </div>
 
