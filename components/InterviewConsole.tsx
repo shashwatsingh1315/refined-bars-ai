@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useInterview } from '../context/InterviewContext';
-import { analyzeAndProbe, transcribeFinalSegment, regenerateQuestionAnalysis } from '../services/geminiService';
+import { analyzeAndProbe, transcribeAudio, analyzeTranscript, regenerateQuestionAnalysis } from '../services/geminiService';
 import { Recorder } from './Recorder';
 import { Button } from './Button';
 import { SettingsModal } from './SettingsModal';
@@ -85,8 +85,9 @@ export const InterviewConsole: React.FC = () => {
     setIsProcessing(true);
     setError(null);
     try {
-      const transcript = await transcribeFinalSegment(
-        settings, // Pass full settings object
+      // Step 1: Transcribe the audio completely
+      const transcript = await transcribeAudio(
+        settings,
         audioBase64,
         mimeType
       );
@@ -95,8 +96,21 @@ export const InterviewConsole: React.FC = () => {
         (currentResult.transcript ? "\n\n" : "") +
         "CANDIDATE: " + (transcript || "");
 
-      updateResult(currentItem.id, { transcript: updatedTranscript });
-      setProbingQuestions([]);
+      // Step 2: Analyze the transcript for STAR evidence (no probing questions needed)
+      const { starUpdate } = await analyzeTranscript(
+        settings,
+        transcript,
+        currentItem,
+        currentResult.transcript,
+        currentResult.starEvidence,
+        false // Do NOT generate probing questions (question is finished)
+      );
+
+      updateResult(currentItem.id, {
+        transcript: updatedTranscript,
+        starEvidence: starUpdate
+      });
+      setProbingQuestions([]); // Clear probing questions since we're done
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to finalize the question transcription.");
@@ -290,6 +304,20 @@ export const InterviewConsole: React.FC = () => {
                   <p className="text-xs font-black uppercase opacity-30">No responses recorded yet</p>
                 </div>
               )}
+            </div>
+
+            {/* Notes Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 px-1">
+                <FileText className="w-5 h-5 text-black" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-black">Interviewer Notes</h3>
+              </div>
+              <textarea
+                value={currentResult.notes || ''}
+                onChange={(e) => updateResult(currentItem.id, { notes: e.target.value })}
+                placeholder="Add your notes, observations, or concerns about this parameter..."
+                className="w-full bg-white border-[3px] border-black p-6 text-sm text-black font-bold leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#00D1FF] min-h-[120px]"
+              />
             </div>
           </div>
         </div>

@@ -179,102 +179,32 @@ export const analyzeAndProbe = async (
   starUpdate: STARResult;
   probingQuestions: string[];
 }> => {
-  const recentTranscript = getRecentTranscript(currentTranscript);
-  const previousSTARContext = previousSTAR ? JSON.stringify(previousSTAR) : "None (New)";
+  // Step 1: Transcribe the audio completely
+  const newTranscriptSnippet = await transcribeAudio(settings, audioBase64, mimeType);
 
-  const promptText = `
-    Question: "${rubricItem.question}"
-    Previous STAR Context: ${previousSTARContext}
-    Recent Transcript Context: "${recentTranscript}"
-    
-    TASK: 
-    1. Transcribe the new audio snippet verbatim.
-    2. ACCUMULATE STAR evidence for "${rubricItem.parameter}". MERGE new facts with Previous STAR Context. Do not lose old details unless contradicted.
-    3. Generate 2-3 SHARP, specific probing questions if STAR is incomplete or vague.
-    
-    RESTRICTIONS:
-    - Evidence must be explicit.
-    - Output MUST be valid JSON.
-  `;
+  // Step 2: Analyze the transcript for STAR evidence and generate probing questions
+  const { starUpdate, probingQuestions } = await analyzeTranscript(
+    settings,
+    newTranscriptSnippet,
+    rubricItem,
+    currentTranscript,
+    previousSTAR,
+    true // Generate probing questions
+  );
 
-  if (settings.provider === 'openrouter') {
-    const rawJson = await callOpenRouter(settings, [{
-      role: "user",
-      content: [
-        { type: "text", text: promptText },
-        { type: "image_url", image_url: { url: `data:${mimeType};base64,${audioBase64}` } }
-      ]
-    }], "Return JSON with: newTranscriptSnippet (string), starUpdate (object with situation, task, action, result), probingQuestions (array of strings).");
-
-    const parsed = parseCleanJson(rawJson);
-    return {
-      ...parsed,
-      newTranscriptSnippet: ensureString(parsed.newTranscriptSnippet)
-    };
-  }
-
-  // Google Provider (Default)
-  const apiKey = getGoogleApiKey(settings);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: settings.modelName,
-    systemInstruction: SYSTEM_INSTRUCTION,
-    generationConfig: {
-      temperature: 0.2, // Low temperature to reduce hallucinations
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          newTranscriptSnippet: { type: SchemaType.STRING },
-          starUpdate: {
-            type: SchemaType.OBJECT,
-            properties: {
-              situation: { type: SchemaType.STRING },
-              task: { type: SchemaType.STRING },
-              action: { type: SchemaType.STRING },
-              result: { type: SchemaType.STRING },
-            },
-            required: ["situation", "task", "action", "result"]
-          },
-          probingQuestions: {
-            type: SchemaType.ARRAY,
-            items: { type: SchemaType.STRING }
-          }
-        },
-        required: ["newTranscriptSnippet", "starUpdate", "probingQuestions"]
-      }
-    }
-  });
-
-  try {
-    const result = await model.generateContent([
-      { inlineData: { mimeType, data: audioBase64 } },
-      { text: promptText }
-    ]);
-    const response = await result.response;
-    const text = response.text();
-
-    if (!text) {
-      throw new Error("AI returned an empty response.");
-    }
-
-    const parsed = parseCleanJson(text);
-    return {
-      ...parsed,
-      newTranscriptSnippet: ensureString(parsed.newTranscriptSnippet)
-    };
-  } catch (err: any) {
-    console.error("Gemini analyzeAndProbe Error:", err);
-    throw err;
-  }
+  return {
+    newTranscriptSnippet,
+    starUpdate,
+    probingQuestions
+  };
 };
 
-export const transcribeFinalSegment = async (
+export const transcribeAudio = async (
   settings: AppSettings,
   audioBase64: string,
   mimeType: string
 ): Promise<string> => {
-  const prompt = "Transcribe audio verbatim. Be extremely concise. Just the text.";
+  const prompt = "Transcribe audio verbatim. Provide the complete transcript of everything spoken.";
 
   if (settings.provider === 'openrouter') {
     const rawText = await callOpenRouter(settings, [{
@@ -315,6 +245,104 @@ export const transcribeFinalSegment = async (
     throw err;
   }
 };
+
+/**
+ * Analyzes a transcript (text-only) for STAR evidence.
+ * Optionally generates probing questions.
+ */
+export const analyzeTranscript = async (
+  settings: AppSettings,
+  newTranscriptSnippet: string,
+  rubricItem: RubricItem,
+  currentTranscript: string,
+  previousSTAR?: STARResult,
+  generateProbes: boolean = true
+): Promise<{
+  starUpdate: STARResult;
+  probingQuestions: string[];
+}> => {
+  const recentTranscript = getRecentTranscript(currentTranscript);
+  const previousSTARContext = previousSTAR ? JSON.stringify(previousSTAR) : "None (New)";
+
+  const promptText = `
+    Question: "${rubricItem.question}"
+    Previous STAR Context: ${previousSTARContext}
+    Recent Transcript Context: "${recentTranscript}"
+    New Transcript Snippet: "${newTranscriptSnippet}"
+    
+    TASK: 
+    1. ACCUMULATE STAR evidence for "${rubricItem.parameter}". MERGE new facts with Previous STAR Context. Do not lose old details unless contradicted.
+    ${generateProbes ? '2. Generate 2-3 SHARP, specific probing questions if STAR is incomplete or vague.' : '2. Do NOT generate probing questions (the interview for this parameter is complete).'}
+    
+    RESTRICTIONS:
+    - Evidence must be explicit.
+    - Output MUST be valid JSON.
+  `;
+
+  if (settings.provider === 'openrouter') {
+    const rawJson = await callOpenRouter(settings, [{
+      role: "user",
+      content: [{ type: "text", text: promptText }]
+    }], "Return JSON with: starUpdate (object with situation, task, action, result), probingQuestions (array of strings).");
+
+    const parsed = parseCleanJson(rawJson);
+    return {
+      starUpdate: parsed.starUpdate || { situation: '', task: '', action: '', result: '' },
+      probingQuestions: parsed.probingQuestions || []
+    };
+  }
+
+  // Google Provider (Default)
+  const apiKey = getGoogleApiKey(settings);
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: settings.modelName,
+    systemInstruction: SYSTEM_INSTRUCTION,
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          starUpdate: {
+            type: SchemaType.OBJECT,
+            properties: {
+              situation: { type: SchemaType.STRING },
+              task: { type: SchemaType.STRING },
+              action: { type: SchemaType.STRING },
+              result: { type: SchemaType.STRING },
+            },
+            required: ["situation", "task", "action", "result"]
+          },
+          probingQuestions: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING }
+          }
+        },
+        required: ["starUpdate", "probingQuestions"]
+      }
+    }
+  });
+
+  try {
+    const result = await model.generateContent(promptText);
+    const response = await result.response;
+    const text = response.text();
+
+    if (!text) {
+      throw new Error("AI returned an empty response.");
+    }
+
+    const parsed = parseCleanJson(text);
+    return {
+      starUpdate: parsed.starUpdate || { situation: '', task: '', action: '', result: '' },
+      probingQuestions: parsed.probingQuestions || []
+    };
+  } catch (err: any) {
+    console.error("Gemini analyzeTranscript Error:", err);
+    throw err;
+  }
+}
 
 export const analyzeHolisticSTAR = async (
   settings: AppSettings,

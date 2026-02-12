@@ -30,7 +30,7 @@ export const generatePDF = (
   const tableData = rubric.map(item => {
     const result = results[item.id];
     const star = result?.starEvidence;
-    const starStr = star 
+    const starStr = star
       ? `S: ${star.situation}\nT: ${star.task}\nA: ${star.action}\nR: ${star.result}`
       : 'No evidence extracted.';
 
@@ -38,19 +38,21 @@ export const generatePDF = (
       item.competency,
       item.parameter,
       result?.rating || '-',
-      starStr
+      starStr,
+      result?.notes || '-'
     ];
   });
 
   autoTable(doc, {
     startY: 65,
-    head: [['Competency', 'Parameter', 'Score', 'STAR Evidence']],
+    head: [['Competency', 'Parameter', 'Score', 'STAR Evidence', 'Notes']],
     body: tableData,
     columnStyles: {
-      0: { cellWidth: 30 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 15, halign: 'center' },
-      3: { cellWidth: 'auto', fontSize: 8 }
+      0: { cellWidth: 25 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 12, halign: 'center' },
+      3: { cellWidth: 50, fontSize: 8 },
+      4: { cellWidth: 30, fontSize: 8 }
     },
     headStyles: {
       fillColor: [30, 64, 175]

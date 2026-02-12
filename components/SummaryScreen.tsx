@@ -15,47 +15,28 @@ export const SummaryScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  const [masterTranscript, setMasterTranscript] = useState<string | null>(null);
-  const [isGeneratingMaster, setIsGeneratingMaster] = useState(false);
+  // Auto-generate master transcript by concatenating all parameter transcripts
+  const [masterTranscript, setMasterTranscript] = useState<string>(() => {
+    return rubric
+      .map(item => {
+        const t = results[item.id]?.transcript;
+        return t ? `--- Question: ${item.parameter} ---\n${t}` : null;
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  });
 
-  // ... (useEffect hook)
-
-  const handleGenerateMasterTranscript = async () => {
-    setIsGeneratingMaster(true);
-    setError(null);
-    try {
-      if (!sessionId) throw new Error("No session ID found.");
-
-      const audioBlobs = await getSessionAudio(sessionId);
-      if (audioBlobs.length === 0) {
-        throw new Error("No audio recordings found for this session.");
-      }
-
-      const audioData = audioBlobs.map(b => ({ blob: b.blob, mimeType: b.mimeType }));
-      const transcript = await generateMasterTranscript(settings, audioData);
-      setMasterTranscript(transcript);
-    } catch (err: any) {
-      console.error("Master Transcript Generation Failed:", err);
-      setError(`AI generation failed (${err.message}). Switching to partial transcripts fallback.`);
-
-      // Fallback: Concatenate existing transcripts from results
-      const fallbackTranscript = rubric
-        .map(item => {
-          const t = results[item.id]?.transcript;
-          return t ? `--- Question: ${item.parameter} ---\n${t}` : null;
-        })
-        .filter(Boolean)
-        .join("\n\n");
-
-      if (fallbackTranscript) {
-        setMasterTranscript(fallbackTranscript);
-      } else {
-        setError("Failed to generate master transcript and no partial transcripts available.");
-      }
-    } finally {
-      setIsGeneratingMaster(false);
-    }
-  };
+  // Update master transcript when results change
+  useEffect(() => {
+    const concatenated = rubric
+      .map(item => {
+        const t = results[item.id]?.transcript;
+        return t ? `--- Question: ${item.parameter} ---\n${t}` : null;
+      })
+      .filter(Boolean)
+      .join("\n\n");
+    setMasterTranscript(concatenated);
+  }, [results, rubric]);
 
   const handleHolisticAnalysis = async () => {
     setIsAnalyzing(true);
@@ -159,18 +140,9 @@ export const SummaryScreen: React.FC = () => {
               <FileAudio className="w-6 h-6 text-black" />
               <h2 className="text-xl font-black text-black uppercase tracking-tight">Full Session Transcript</h2>
             </div>
-            {!masterTranscript && (
-              <Button
-                onClick={handleGenerateMasterTranscript}
-                disabled={isGeneratingMaster}
-                variant="primary"
-                size="sm"
-                className="bg-black text-white"
-              >
-                {isGeneratingMaster ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                {isGeneratingMaster ? "Processing Audio..." : "Generate Master Transcript"}
-              </Button>
-            )}
+            <div className="text-[10px] px-3 py-1 bg-black text-white border-2 border-white font-black uppercase tracking-widest">
+              AUTO-GENERATED
+            </div>
           </div>
 
           {error && (
@@ -188,7 +160,7 @@ export const SummaryScreen: React.FC = () => {
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center opacity-50">
                 <p className="text-sm font-black uppercase text-black">
-                  {isGeneratingMaster ? "Sending all session audio to Gemini for verbatim transcription..." : "Generate a complete chronological transcript of the entire interview."}
+                  No transcripts available yet. Complete some interview questions to see the transcript here.
                 </p>
               </div>
             )}
@@ -251,6 +223,19 @@ export const SummaryScreen: React.FC = () => {
                     ) : (
                       <div className="p-12 border-[3px] border-dashed border-black bg-slate-50 text-center">
                         <p className="text-xs font-black uppercase text-black opacity-30 italic">No evidence synthesized for this parameter.</p>
+                      </div>
+                    )}
+
+                    {/* Notes Section */}
+                    {result?.notes && (
+                      <div className="space-y-3 mt-6">
+                        <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-[#A3E635] w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                          <FileText className="w-4 h-4 text-black" />
+                          <h4 className="text-[11px] font-black text-black uppercase tracking-widest">Interviewer Notes</h4>
+                        </div>
+                        <div className="p-4 border-[3px] border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.15)]">
+                          <p className="text-xs text-black font-bold leading-relaxed whitespace-pre-wrap">{result.notes}</p>
+                        </div>
                       </div>
                     )}
                   </div>

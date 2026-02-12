@@ -22,6 +22,7 @@ export interface InterviewResult {
   starEvidence?: STARResult;
   rating: number;
   isEdited: boolean;
+  notes?: string; // Interviewer notes for this parameter
 }
 
 export type AIProvider = 'google' | 'openrouter';
