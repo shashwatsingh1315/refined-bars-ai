@@ -63,7 +63,7 @@ export const SummaryScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen py-20 px-6 bg-[#f0f0f0]">
+    <div className="min-h-screen py-20 px-6 bg-slate-50">
       <div className="max-w-5xl mx-auto space-y-12">
         {/* Top Navigation / Header */}
         <header className="flex items-center justify-between pb-8 border-b-[4px] border-black">
@@ -81,7 +81,7 @@ export const SummaryScreen: React.FC = () => {
             <Button
               onClick={handleDownloadReport}
               variant="outline"
-              className="bg-white hover:bg-[#FFD600]"
+              className="bg-white hover:bg-secondary"
             >
               <Download className="w-5 h-5 mr-2" />
               Download Report
@@ -98,7 +98,7 @@ export const SummaryScreen: React.FC = () => {
 
         {/* Global Actions */}
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-[#A3E635] border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+          <div className="bg-main border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
             <div>
               <h3 className="text-xl font-black text-black uppercase mb-2">Holistic Analysis</h3>
               <p className="text-sm font-bold text-black mb-6 leading-relaxed">
@@ -115,7 +115,7 @@ export const SummaryScreen: React.FC = () => {
             </Button>
           </div>
 
-          <div className="bg-[#00D1FF] border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
+          <div className="bg-quat border-[4px] border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
             <div>
               <h3 className="text-xl font-black text-black uppercase mb-2">Export Data</h3>
               <p className="text-sm font-bold text-black mb-6 leading-relaxed">
@@ -134,7 +134,7 @@ export const SummaryScreen: React.FC = () => {
 
         {/* Master Transcript Section */}
         <div className="bg-white border-[4px] border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-          <div className="px-10 py-6 border-b-[4px] border-black flex items-center justify-between bg-[#FFD600]">
+          <div className="px-10 py-6 border-b-[4px] border-black flex items-center justify-between bg-secondary">
             <div className="flex items-center gap-3">
               <FileAudio className="w-6 h-6 text-black" />
               <h2 className="text-xl font-black text-black uppercase tracking-tight">Full Session Transcript</h2>
@@ -145,7 +145,7 @@ export const SummaryScreen: React.FC = () => {
           </div>
 
           {error && (
-            <div className="bg-[#FF6B6B] border-b-[4px] border-black px-10 py-3 flex items-center gap-3">
+            <div className="bg-tertiary border-b-[4px] border-black px-10 py-3 flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-black" />
               <p className="text-xs font-black uppercase text-black">{error}</p>
             </div>
@@ -176,7 +176,7 @@ export const SummaryScreen: React.FC = () => {
 
             return (
               <div key={item.id} className="bg-white border-[4px] border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-10 py-6 border-b-[4px] border-black flex justify-between items-center bg-[#00D1FF]">
+                <div className="px-10 py-6 border-b-[4px] border-black flex justify-between items-center bg-quat">
                   <div>
                     <span className="text-[10px] font-black text-black uppercase tracking-widest opacity-60">{item.competency}</span>
                     <h3 className="text-2xl font-black text-black uppercase tracking-tight">{item.parameter}</h3>
@@ -186,7 +186,7 @@ export const SummaryScreen: React.FC = () => {
                     <select
                       value={result?.rating || 0}
                       onChange={(e) => updateResult(item.id, { rating: parseInt(e.target.value), isEdited: true })}
-                      className={`w-16 h-16 border-[4px] border-black font-black text-2xl text-center appearance-none cursor-pointer transition-all ${result?.rating ? 'bg-[#A3E635] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white text-black'
+                      className={`w-16 h-16 border-[4px] border-black font-black text-2xl text-center appearance-none cursor-pointer transition-all ${result?.rating ? 'bg-main text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-white text-black'
                         }`}
                     >
                       <option value="0">-</option>
@@ -201,7 +201,7 @@ export const SummaryScreen: React.FC = () => {
                 <div className="p-10 grid md:grid-cols-2 gap-12">
                   {/* STAR Evidence */}
                   <div className="space-y-6">
-                    <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-[#FFD600] w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                    <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-secondary w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                       <ScrollText className="w-4 h-4 text-black" />
                       <h4 className="text-[11px] font-black text-black uppercase tracking-widest">STAR Breakdown</h4>
                     </div>
@@ -228,7 +228,7 @@ export const SummaryScreen: React.FC = () => {
                     {/* Notes Section */}
                     {result?.notes && (
                       <div className="space-y-3 mt-6">
-                        <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-[#A3E635] w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-main text-white w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                           <FileText className="w-4 h-4 text-black" />
                           <h4 className="text-[11px] font-black text-black uppercase tracking-widest">Interviewer Notes</h4>
                         </div>
@@ -241,13 +241,13 @@ export const SummaryScreen: React.FC = () => {
 
                   {/* Rubric anchors */}
                   <div className="space-y-6">
-                    <h4 className="text-[11px] font-black text-black uppercase tracking-widest px-2 py-1 border-2 border-black bg-[#00D1FF] w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">Rating Reference</h4>
+                    <h4 className="text-[11px] font-black text-black uppercase tracking-widest px-2 py-1 border-2 border-black bg-quat w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">Rating Reference</h4>
                     <div className="grid gap-3">
                       {[
-                        { lv: 1, text: item.level1, c: 'bg-[#FF6B6B]' },
-                        { lv: 2, text: item.level2, c: 'bg-[#FFD600]' },
-                        { lv: 3, text: item.level3, c: 'bg-[#00D1FF]' },
-                        { lv: 4, text: item.level4, c: 'bg-[#A3E635]' },
+                        { lv: 1, text: item.level1, c: 'bg-tertiary' },
+                        { lv: 2, text: item.level2, c: 'bg-secondary' },
+                        { lv: 3, text: item.level3, c: 'bg-quat' },
+                        { lv: 4, text: item.level4, c: 'bg-main' },
                       ].map(a => (
                         <div key={a.lv} className={`p-4 border-[3px] border-black text-[11px] flex gap-4 transition-all ${result?.rating === a.lv ? 'shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] translate-x-[-2px] translate-y-[-2px] ring-2 ring-black' : 'opacity-30 grayscale'} ${a.c}`}>
                           <div className="font-black shrink-0 w-8 h-8 flex items-center justify-center bg-black text-white border-2 border-black">{a.lv}</div>

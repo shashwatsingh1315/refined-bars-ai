@@ -108,13 +108,13 @@ export const Recorder: React.FC<RecorderProps> = ({ onProbe, onFinish, isProcess
             <p className="text-xs font-bold text-black/60">Gemini is extracting STAR evidence and generating probes.</p>
           </div>
           {onCancelProcessing && (
-            <Button variant="outline" size="sm" onClick={onCancelProcessing} className="bg-[#FF6B6B] hover:bg-[#FF6B6B]">
+            <Button variant="outline" size="sm" onClick={onCancelProcessing} className="bg-tertiary hover:bg-tertiary">
               <XCircle className="w-4 h-4 mr-2" /> Cancel
             </Button>
           )}
         </div>
         <div className="absolute bottom-0 left-0 h-2 bg-black/10 w-full overflow-hidden">
-          <div className="h-full bg-[#00D1FF] w-1/2 animate-[shimmer_2s_infinite]"></div>
+          <div className="h-full bg-quat w-1/2 animate-[shimmer_2s_infinite]"></div>
         </div>
       </div>
     );
@@ -123,7 +123,7 @@ export const Recorder: React.FC<RecorderProps> = ({ onProbe, onFinish, isProcess
   return (
     <div className="space-y-6">
       {error && (
-        <div className="text-black text-[11px] font-black uppercase bg-[#FF6B6B] p-4 border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3">
+        <div className="text-black text-[11px] font-black uppercase bg-tertiary p-4 border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3">
           <XCircle className="w-5 h-5 shrink-0" />
           {error}
         </div>
@@ -133,7 +133,7 @@ export const Recorder: React.FC<RecorderProps> = ({ onProbe, onFinish, isProcess
         <Button
           onClick={startRecording}
           size="lg"
-          className="w-full h-20 text-xl bg-[#A3E635] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] group"
+          className="w-full h-20 text-xl bg-main shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] group"
         >
           <Mic className="w-6 h-6 mr-4 group-hover:scale-110 transition-transform" />
           RECORD RESPONSE
@@ -143,7 +143,7 @@ export const Recorder: React.FC<RecorderProps> = ({ onProbe, onFinish, isProcess
           <Button
             onClick={() => handleStop(onProbe)}
             variant="secondary"
-            className="h-20 bg-[#FFD600] text-black border-[3px] border-black"
+            className="h-20 bg-secondary text-black border-[3px] border-black"
           >
             <Zap className="w-5 h-5 mr-2 text-black fill-black" />
             ANALYZE & PROBE
@@ -157,7 +157,7 @@ export const Recorder: React.FC<RecorderProps> = ({ onProbe, onFinish, isProcess
             FINISH QUESTION
           </Button>
           <div className="col-span-2 flex items-center justify-center py-2">
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-[#FF6B6B] border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-secondary border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <span className="w-3 h-3 bg-black animate-pulse"></span>
               <span className="text-[12px] font-black text-black tabular-nums uppercase tracking-widest">{formatTime(timer)} recording</span>
             </div>
