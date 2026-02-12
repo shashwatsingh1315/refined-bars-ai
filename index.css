@@ -87,7 +87,7 @@ body {
 }
 
 .neo-brutalism-input:focus {
-  background-color: #fefce8;
+  background-color: var(--secondary);
   box-shadow: 4px 4px 0px 0px var(--black);
 }
 
