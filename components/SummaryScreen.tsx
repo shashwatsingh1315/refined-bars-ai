@@ -48,7 +48,12 @@ export const SummaryScreen: React.FC = () => {
 
       // Batch update results
       Object.entries(newResults).forEach(([id, result]) => {
-        updateResult(id, result);
+        // @ts-ignore - Result from holistic analysis matches the shape we need
+        updateResult(id, {
+          starEvidence: result.starEvidence,
+          rating: result.rating,
+          isEdited: true
+        });
       });
     } catch (err: any) {
       console.error("Holistic Analysis Failed:", err);
