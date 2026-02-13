@@ -110,14 +110,12 @@ export async function startLiveTranscription(
         });
 
         const config = {
-            responseModalities: [Modality.AUDIO],
+            responseModalities: [Modality.TEXT], // TEXT suppresses audio generation
             inputAudioTranscription: {},
             systemInstruction:
-                'You are a passive transcription assistant. DO NOT respond, analyze, or engage. ' +
-                'The speaker uses Hinglish (Hindi-English code-switching). ' +
-                'Transcribe EXACTLY what you hear using ONLY Roman/Latin script. ' +
-                'For Hindi words, write them in romanized form (e.g., "namaste" not "नमस्ते"). ' +
-                'Do not translate, interpret, or add any commentary.'
+                'You are a background transcription process. Do not reply to the user. ' +
+                'Do not generate any text or audio. Remain silent. ' +
+                'Only transcribe speech using Roman/Latin script for all languages.'
         };
 
         const session: LiveSession = {
