@@ -206,8 +206,22 @@ export const Settings: React.FC = () => {
               {/* Provider Selector */}
               <div className="grid grid-cols-2 gap-6">
                 <button
+                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-flash-1.5' })}
+                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 ${settings.provider === 'openrouter'
+                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                    : 'bg-white hover:bg-slate-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className={`w-5 h-5 text-black`} />
+                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>OpenRouter (Recommended)</span>
+                  </div>
+                  <p className="text-xs text-black font-bold leading-relaxed">Access top-tier models (Claude 3.5, GPT-4o, Gemini 1.5 Pro) with Sarvam transcription.</p>
+                </button>
+
+                <button
                   onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-2.5-flash' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all hidden ${settings.provider === 'google'
+                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'google'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
@@ -220,22 +234,8 @@ export const Settings: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'openrouter'
-                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
-                    : 'bg-white hover:bg-slate-50'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe className={`w-5 h-5 text-black`} />
-                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>OpenRouter</span>
-                  </div>
-                  <p className="text-xs text-black font-bold leading-relaxed">Access 400+ models (OpenAI, Anthropic, etc).</p>
-                </button>
-
-                <button
                   onClick={() => updateSettings({ provider: 'sarvam', modelName: 'saaras:v1' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 hidden ${settings.provider === 'sarvam'
+                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'sarvam'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
@@ -244,7 +244,7 @@ export const Settings: React.FC = () => {
                     <Zap className={`w-5 h-5 text-black`} />
                     <span className={`text-sm font-black uppercase tracking-tight text-black`}>Sarvam AI</span>
                   </div>
-                  <p className="text-xs text-black font-bold leading-relaxed">Real-time low-latency Indian language transcription.</p>
+                  <p className="text-xs text-black font-bold leading-relaxed">Transcription only mode (No analysis).</p>
                 </button>
               </div>
 

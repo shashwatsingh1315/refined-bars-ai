@@ -3,8 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { AppSettings, InterviewResult, RubricItem, InterviewContextType } from '../types';
 
 const defaultSettings: AppSettings = {
-  provider: 'google',
-  modelName: 'gemini-2.5-flash',
+  provider: 'openrouter',
+  modelName: 'google/gemini-flash-1.5',
   candidateName: '',
   transcriptionMode: 'batch',
   googleApiKey: (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || '',
