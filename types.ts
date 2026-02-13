@@ -31,6 +31,7 @@ export interface AppSettings {
   provider: AIProvider;
   modelName: string;
   candidateName: string;
+  transcriptionMode: 'batch' | 'live';
   openRouterApiKey?: string;
   googleApiKey?: string;
 }

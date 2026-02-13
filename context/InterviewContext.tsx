@@ -6,6 +6,7 @@ const defaultSettings: AppSettings = {
   provider: 'google',
   modelName: 'gemini-1.5-flash',
   candidateName: '',
+  transcriptionMode: 'batch',
   googleApiKey: (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || '',
   openRouterApiKey: (import.meta as any).env?.VITE_OPENROUTER_API_KEY || (import.meta as any).env?.OPENROUTER_API_KEY || '',
 };
