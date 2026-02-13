@@ -110,7 +110,7 @@ export async function startLiveTranscription(
         });
 
         const config = {
-            responseModalities: [Modality.TEXT],
+            responseModalities: [Modality.AUDIO],
             inputAudioTranscription: {},
             systemInstruction:
                 'You are a transcription assistant. The speaker uses Hinglish (Hindi-English code-switching). ' +
