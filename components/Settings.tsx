@@ -177,8 +177,16 @@ export const Settings: React.FC = () => {
     <div className="min-h-screen py-16 px-6">
       <div className="max-w-3xl mx-auto space-y-12">
         <div className="space-y-4 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-secondary border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
-            <Briefcase className="w-8 h-8 text-black" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img
+              src="https://raw.githubusercontent.com/shashwatsingh1315/refined-bars-ai/Experimental/public/kimbal-logo.png"
+              alt="Kimbal Logo"
+              className="h-16 w-auto"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = `<div class="inline-flex items-center justify-center w-16 h-16 bg-secondary border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"><svg class="w-8 h-8 text-black" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>`;
+              }}
+            />
           </div>
           <h1 className="text-5xl font-black text-black uppercase tracking-tighter">Setup Interview</h1>
           <p className="text-black font-bold max-w-lg mx-auto text-sm leading-relaxed bg-white border-[3px] border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">

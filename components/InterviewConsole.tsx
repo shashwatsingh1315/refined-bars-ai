@@ -225,8 +225,16 @@ export const InterviewConsole: React.FC = () => {
         {/* Header */}
         <div className="p-6 border-b-[3px] border-black bg-main">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-black flex items-center justify-center text-main border-2 border-black">
-              <LayoutGrid className="w-5 h-5" />
+            <div className="flex items-center justify-center text-main">
+              <img
+                src="https://raw.githubusercontent.com/shashwatsingh1315/refined-bars-ai/Experimental/public/kimbal-logo.png"
+                alt="Kimbal Logo"
+                className="h-8 w-auto"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  // Fallback to icon if image fails
+                }}
+              />
             </div>
             <h2 className="text-xl font-black text-black uppercase tracking-tight">Session Navigator</h2>
           </div>

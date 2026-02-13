@@ -218,7 +218,7 @@ export const transcribeAudio = async (
     // OpenRouter generic API
     // We attempt to send the audio as a multimodal input (image_url hack or proper input if supported)
     try {
-      const prompt = "Transcribe this audio verbatim. Output only the text.";
+      const prompt = "Transcribe this audio verbatim. Output ONLY the raw transcript text. Do not output JSON. Do not add any preamble or postscript.";
       const rawText = await callOpenRouter(settings, [{
         role: "user",
         content: [
