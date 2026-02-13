@@ -206,7 +206,7 @@ export const Settings: React.FC = () => {
               {/* Provider Selector */}
               <div className="grid grid-cols-2 gap-6">
                 <button
-                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-flash-1.5' })}
+                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
                   className={`p-6 border-[3px] border-black text-left transition-all col-span-2 ${settings.provider === 'openrouter'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
@@ -221,7 +221,7 @@ export const Settings: React.FC = () => {
 
                 <button
                   onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-2.5-flash' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'google'
+                  className={`p-6 border-[3px] border-black text-left transition-all hidden ${settings.provider === 'google'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
@@ -235,7 +235,7 @@ export const Settings: React.FC = () => {
 
                 <button
                   onClick={() => updateSettings({ provider: 'sarvam', modelName: 'saaras:v1' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'sarvam'
+                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 hidden ${settings.provider === 'sarvam'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}

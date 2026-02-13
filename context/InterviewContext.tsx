@@ -4,7 +4,7 @@ import { AppSettings, InterviewResult, RubricItem, InterviewContextType } from '
 
 const defaultSettings: AppSettings = {
   provider: 'openrouter',
-  modelName: 'google/gemini-flash-1.5',
+  modelName: 'google/gemini-3-flash-preview',
   candidateName: '',
   transcriptionMode: 'batch',
   googleApiKey: (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || '',
