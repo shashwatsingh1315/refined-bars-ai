@@ -124,12 +124,13 @@ const createGoogleClient = (settings: AppSettings): GoogleGenAI => {
 const callOpenRouter = async (
   settings: AppSettings,
   messages: any[],
-  schemaDescription?: string
+  schemaDescription?: string,
+  systemInstruction: string = SYSTEM_INSTRUCTION
 ) => {
   if (!settings.openRouterApiKey) throw new Error("OpenRouter API Key is missing.");
 
   const fullMessages = [
-    { role: "system", content: SYSTEM_INSTRUCTION + (schemaDescription ? `\n\nEnsure JSON matches this structure: ${schemaDescription}` : "") },
+    { role: "system", content: systemInstruction + (schemaDescription ? `\n\nEnsure JSON matches this structure: ${schemaDescription}` : "") },
     ...messages
   ];
 
@@ -144,7 +145,7 @@ const callOpenRouter = async (
     body: JSON.stringify({
       model: settings.modelName,
       messages: fullMessages,
-      response_format: { type: "json_object" }
+      response_format: schemaDescription ? { type: "json_object" } : undefined
     })
   });
 
@@ -228,7 +229,7 @@ export const transcribeAudio = async (
           },
           { type: "text", text: prompt }
         ]
-      }]);
+      }], undefined, "You are a professional transcriber. Output ONLY the raw transcript text. Do not output JSON.");
       return rawText.trim();
     } catch (err: any) {
       console.warn("OpenRouter Transcription failed:", err);
@@ -541,7 +542,7 @@ export const generateMasterTranscript = async (
           })),
           { type: "text", text: prompt }
         ]
-      }]);
+      }], undefined, "You are a professional transcriber. Output ONLY the raw transcript text.");
       return rawText;
     } catch (err: any) {
       console.warn("OpenRouter Master Transcript failed:", err);
