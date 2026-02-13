@@ -125,8 +125,12 @@ export async function startLiveTranscription(
         };
 
         // Connect to Gemini Live API
+        // Use the correct model name for the Gemini API Live endpoint
+        const liveModel = 'gemini-2.0-flash-live-001';
+        console.log('[Live] Connecting to model:', liveModel);
+
         const liveSession = await ai.live.connect({
-            model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+            model: liveModel,
             config: config,
             callbacks: {
                 onopen: () => {
@@ -134,9 +138,13 @@ export async function startLiveTranscription(
                     callbacks.onStatusChange('connected');
                 },
                 onmessage: (message: any) => {
+                    // Debug: log raw message structure
+                    console.log('[Live] Raw message:', JSON.stringify(message).substring(0, 500));
+
                     // Handle input transcription (what the user said)
                     if (message.serverContent?.inputTranscription?.text) {
                         const text = message.serverContent.inputTranscription.text;
+                        console.log('[Live] Input transcription:', text);
                         session.accumulatedTranscript += text;
                         callbacks.onTranscript(session.accumulatedTranscript, false);
                     }
@@ -144,11 +152,15 @@ export async function startLiveTranscription(
                     if (message.serverContent?.modelTurn?.parts) {
                         for (const part of message.serverContent.modelTurn.parts) {
                             if (part.text) {
-                                // Model might also return text — append it
+                                console.log('[Live] Model text:', part.text);
                                 session.accumulatedTranscript += part.text;
                                 callbacks.onTranscript(session.accumulatedTranscript, false);
                             }
                         }
+                    }
+                    // Handle turn completion
+                    if (message.serverContent?.turnComplete) {
+                        console.log('[Live] Turn complete');
                     }
                 },
                 onerror: (e: any) => {
@@ -165,6 +177,7 @@ export async function startLiveTranscription(
         session.session = liveSession;
 
         // Setup browser mic capture
+        console.log('[Live] Requesting microphone access...');
         const mediaStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 channelCount: 1,
@@ -173,6 +186,7 @@ export async function startLiveTranscription(
                 noiseSuppression: true,
             }
         });
+        console.log('[Live] Microphone access granted');
         session.mediaStream = mediaStream;
 
         const audioContext = new AudioContext({ sampleRate: 16000 });
@@ -181,21 +195,13 @@ export async function startLiveTranscription(
         // If browser doesn't support 16kHz, we'll downsample
         const actualSampleRate = audioContext.sampleRate;
 
-        // Load AudioWorklet processor
-        const workletUrl = createWorkletProcessorUrl();
-        await audioContext.audioWorklet.addModule(workletUrl);
-        URL.revokeObjectURL(workletUrl);
-
+        // Load AudioWorklet processor (with fallback for CSP-restricted browsers)
         const sourceNode = audioContext.createMediaStreamSource(mediaStream);
         session.sourceNode = sourceNode;
 
-        const workletNode = new AudioWorkletNode(audioContext, 'pcm-capture-processor');
-        session.workletNode = workletNode;
-
-        workletNode.port.onmessage = (event) => {
+        let audioSendCount = 0;
+        const processAudioChunk = (audioData: Float32Array) => {
             if (!session.isActive) return;
-
-            let audioData: Float32Array = event.data.audioData;
 
             // Store raw chunk for backup
             session.audioChunks.push(new Float32Array(audioData));
@@ -214,13 +220,43 @@ export async function startLiveTranscription(
                         mimeType: 'audio/pcm;rate=16000'
                     }
                 });
+                audioSendCount++;
+                if (audioSendCount <= 3 || audioSendCount % 50 === 0) {
+                    console.log(`[Live] Sent audio chunk #${audioSendCount}, size=${audioData.length}`);
+                }
             } catch (err) {
                 console.warn('[Live] Failed to send audio chunk:', err);
             }
         };
 
-        sourceNode.connect(workletNode);
-        workletNode.connect(audioContext.destination); // needed to keep the worklet alive
+        try {
+            // Try AudioWorklet first
+            const workletUrl = createWorkletProcessorUrl();
+            await audioContext.audioWorklet.addModule(workletUrl);
+            URL.revokeObjectURL(workletUrl);
+
+            const workletNode = new AudioWorkletNode(audioContext, 'pcm-capture-processor');
+            session.workletNode = workletNode;
+
+            workletNode.port.onmessage = (event) => {
+                processAudioChunk(event.data.audioData);
+            };
+
+            sourceNode.connect(workletNode);
+            workletNode.connect(audioContext.destination);
+            console.log('[Live] AudioWorklet setup complete');
+        } catch (workletErr) {
+            // Fallback: use ScriptProcessorNode (deprecated but widely supported)
+            console.warn('[Live] AudioWorklet failed, falling back to ScriptProcessor:', workletErr);
+            const scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+            scriptNode.onaudioprocess = (event) => {
+                const inputData = event.inputBuffer.getChannelData(0);
+                processAudioChunk(new Float32Array(inputData));
+            };
+            sourceNode.connect(scriptNode);
+            scriptNode.connect(audioContext.destination);
+            console.log('[Live] ScriptProcessor fallback setup complete');
+        }
 
         currentSession = session;
     } catch (err: any) {
