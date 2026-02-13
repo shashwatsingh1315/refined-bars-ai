@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import {
@@ -12,12 +11,33 @@ import { Button } from './Button';
 import { RubricItem } from '../types';
 
 export const Settings: React.FC = () => {
-  const { settings, updateSettings, rubric, setRubric, setHasStarted } = useInterview();
+  const { settings, updateSettings, rubric, setRubric, fullRubric, setFullRubric, setHasStarted } = useInterview();
   const [error, setError] = useState<string | null>(null);
   const [isApiKeyConnected, setIsApiKeyConnected] = useState<boolean>(false);
 
-  const [rawRubric, setRawRubric] = useState<RubricItem[]>(rubric);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(rubric.map(r => r.id)));
+  // Use fullRubric if available (superset), otherwise fallback to current rubric (subset)
+  const [rawRubric, setRawRubric] = useState<RubricItem[]>(fullRubric.length > 0 ? fullRubric : rubric);
+
+  // Initialize selection based on what is currently active (rubric), NOT everything
+  // If rubric is empty, selection is empty. If rubric has items, those are selected.
+  // User requested "everything should be unselected" by default, but we should probably keep current selection if valid.
+  // Actually, user said "the drop down should always be collapsed, and everything should be unselected".
+  // I will default to empty selection if coming fresh, or preserve if we have an active session?
+  // User's specific complaint was "I selected 15... now I can only chose out of 15".
+  // So I'll initialize selection from `rubric`, but `rawRubric` from `fullRubric`.
+
+  // If fullRubric exists, we assume `rubric` is the subset of "Selected" items.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    if (fullRubric.length > 0) {
+      // If we have a full rubric, the `rubric` variable holds the *currently selected* subset.
+      return new Set(rubric.map(r => r.id));
+    }
+    // If no full rubric (first load?), select all? Or empty?
+    // User wants clean interface. I'll default to empty if we have a full rubric but no active session?
+    // Safest match to current behavior: Select what is continuously active.
+    return new Set(rubric.map(r => r.id));
+  });
+
   const [expandedCompetencies, setExpandedCompetencies] = useState<Record<string, boolean>>({});
   const [storageStats, setStorageStats] = useState<{ count: number; sizeBytes: number } | null>(null);
 
@@ -48,12 +68,14 @@ export const Settings: React.FC = () => {
         setIsApiKeyConnected(!!settings.googleApiKey && settings.googleApiKey.length > 5);
       } else if (settings.provider === 'openrouter') {
         setIsApiKeyConnected(!!settings.openRouterApiKey && settings.openRouterApiKey.length > 5);
+      } else if (settings.provider === 'sarvam') {
+        setIsApiKeyConnected(!!settings.sarvamApiKey && settings.sarvamApiKey.length > 5);
       }
     };
     checkKey();
     const interval = setInterval(checkKey, 2000);
     return () => clearInterval(interval);
-  }, [settings.provider, settings.openRouterApiKey]);
+  }, [settings.provider, settings.openRouterApiKey, settings.sarvamApiKey]);
 
   const handleConnectKey = async () => {
     // @ts-ignore
@@ -133,12 +155,11 @@ export const Settings: React.FC = () => {
           return a.parameter.localeCompare(b.parameter);
         });
 
-        setRawRubric(parsedRubric);
-        setSelectedIds(new Set(parsedRubric.map(r => r.id)));
-        const allComps = Array.from(new Set(parsedRubric.map(r => r.competency)));
-        const newExpanded: Record<string, boolean> = {};
-        allComps.forEach(c => newExpanded[c] = true);
-        setExpandedCompetencies(newExpanded);
+        setFullRubric(parsedRubric);
+        setRawRubric(parsedRubric); // Update local state for immediate display
+        // Reset selection on new upload
+        setSelectedIds(new Set());
+        setExpandedCompetencies({});
         setError(null);
       }
     });
@@ -165,7 +186,6 @@ export const Settings: React.FC = () => {
           </p>
         </div>
 
-
         <div className="space-y-8">
           {/* Step 1: Provider & API Configuration */}
           <section className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
@@ -186,8 +206,22 @@ export const Settings: React.FC = () => {
               {/* Provider Selector */}
               <div className="grid grid-cols-2 gap-6">
                 <button
-                  onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-1.5-flash' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'google'
+                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
+                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 ${settings.provider === 'openrouter'
+                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                    : 'bg-white hover:bg-slate-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className={`w-5 h-5 text-black`} />
+                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>OpenRouter (Recommended)</span>
+                  </div>
+                  <p className="text-xs text-black font-bold leading-relaxed">Access top-tier models (Claude 3.5, GPT-4o, Gemini 1.5 Pro) with Sarvam transcription.</p>
+                </button>
+
+                <button
+                  onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-2.5-flash' })}
+                  className={`p-6 border-[3px] border-black text-left transition-all hidden ${settings.provider === 'google'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
@@ -200,17 +234,17 @@ export const Settings: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all ${settings.provider === 'openrouter'
+                  onClick={() => updateSettings({ provider: 'sarvam', modelName: 'saaras:v1' })}
+                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 hidden ${settings.provider === 'sarvam'
                     ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
                     : 'bg-white hover:bg-slate-50'
                     }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <Globe className={`w-5 h-5 text-black`} />
-                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>OpenRouter</span>
+                    <Zap className={`w-5 h-5 text-black`} />
+                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>Sarvam AI</span>
                   </div>
-                  <p className="text-xs text-black font-bold leading-relaxed">Access 400+ models (OpenAI, Anthropic, etc).</p>
+                  <p className="text-xs text-black font-bold leading-relaxed">Transcription only mode (No analysis).</p>
                 </button>
               </div>
 
@@ -257,7 +291,7 @@ export const Settings: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : settings.provider === 'openrouter' ? (
                 <div className="space-y-4 pt-6 border-t-[3px] border-black">
                   <div className="space-y-2">
                     <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
@@ -277,17 +311,53 @@ export const Settings: React.FC = () => {
                     />
                   </div>
                   {settings.provider === 'openrouter' && (
-                    <p className="text-[10px] text-black font-bold bg-secondary p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                      <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-3-flash-preview</code>).
-                    </p>
+                    <div className="mt-4 pt-4 border-t-2 border-black/10">
+                      <p className="text-[10px] text-black font-bold bg-secondary p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
+                        <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-3-flash-preview</code>).
+                      </p>
+                      <div className="space-y-2">
+                        <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
+                          <Key className="w-4 h-4 text-black" /> Sarvam API Key (For Live Mode)
+                        </label>
+                        <p className="text-xs text-black font-bold opacity-60">
+                          Required if you want to use Live Transcription while using OpenRouter.
+                        </p>
+                        <input
+                          type="password"
+                          value={settings.sarvamApiKey}
+                          onChange={(e) => updateSettings({ sarvamApiKey: e.target.value })}
+                          placeholder="api-key-..."
+                          className="neo-brutalism-input text-sm"
+                        />
+                      </div>
+                    </div>
                   )}
+                </div>
+              ) : (
+                <div className="space-y-4 pt-6 border-t-[3px] border-black">
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
+                      <Key className="w-4 h-4 text-black" /> Sarvam AI API Key
+                    </label>
+                    <p className="text-xs text-black font-bold">
+                      Get your key from <a href="https://sarvam.ai" target="_blank" className="text-orange-600 underline decoration-2">Sarvam AI Dashboard</a>.
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={settings.sarvamApiKey}
+                      onChange={(e) => updateSettings({ sarvamApiKey: e.target.value })}
+                      placeholder="api-key-..."
+                      className="neo-brutalism-input text-sm"
+                    />
+                  </div>
                 </div>
               )}
             </div>
           </section>
 
-
-          {/* Step 2: Session Details */}
+          {/* Step 2: Session Setup */}
           <section className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
             <div className="px-6 py-4 border-b-[3px] border-black flex items-center gap-3 bg-secondary">
               <span className="text-xs font-black text-black uppercase tracking-widest">2. Session Setup</span>
@@ -315,13 +385,12 @@ export const Settings: React.FC = () => {
                     value={settings.modelName}
                     onChange={(e) => updateSettings({ modelName: e.target.value })}
                     className="neo-brutalism-input pl-12 text-sm"
-                    placeholder={settings.provider === 'google' ? "gemini-1.5-flash" : "google/gemini-3-flash-preview"}
+                    placeholder={settings.provider === 'google' ? "gemini-2.5-flash" : "google/gemini-3-flash-preview"}
                   />
                 </div>
               </div>
             </div>
           </section>
-
 
           {/* Step 3: Rubric Setup */}
           <section className="bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
@@ -436,16 +505,16 @@ export const Settings: React.FC = () => {
             </div>
           </section>
 
-
           <div className="pt-8 flex flex-col items-center gap-6">
             {!isApiKeyConnected && (
-              <p className="text-xs text-black font-black uppercase bg-tertiary px-3 py-1 border-2 border-black">Please connect your {settings.provider === 'google' ? 'Google' : 'OpenRouter'} API key to continue</p>
+              <p className="text-xs text-black font-black uppercase bg-tertiary px-3 py-1 border-2 border-black">
+                Please connect your {settings.provider === 'google' ? 'Google' : settings.provider === 'sarvam' ? 'Sarvam AI' : 'OpenRouter'} API key to continue
+              </p>
             )}
             <Button size="lg" disabled={!isFormValid} onClick={handleStartInterview} className="w-full max-sm:max-w-none max-w-sm h-16 text-lg">
               Launch Interview <Play className="w-6 h-6 ml-3 fill-current" />
             </Button>
           </div>
-
         </div>
       </div>
     </div>

@@ -3,9 +3,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { AppSettings, InterviewResult, RubricItem, InterviewContextType } from '../types';
 
 const defaultSettings: AppSettings = {
-  provider: 'google',
-  modelName: 'gemini-1.5-flash',
+  provider: 'openrouter',
+  modelName: 'google/gemini-3-flash-preview',
   candidateName: '',
+  transcriptionMode: 'batch',
   googleApiKey: (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || '',
   openRouterApiKey: (import.meta as any).env?.VITE_OPENROUTER_API_KEY || (import.meta as any).env?.OPENROUTER_API_KEY || '',
 };
@@ -63,6 +64,16 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
     return localStorage.getItem('bars_sessionId') || crypto.randomUUID();
   });
 
+  const [fullRubric, setFullRubric] = useState<RubricItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('bars_fullRubric');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse fullRubric:", e);
+      return [];
+    }
+  });
+
   useEffect(() => {
     localStorage.setItem('bars_settings', JSON.stringify(settings));
   }, [settings]);
@@ -70,6 +81,10 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('bars_rubric', JSON.stringify(rubric));
   }, [rubric]);
+
+  useEffect(() => {
+    localStorage.setItem('bars_fullRubric', JSON.stringify(fullRubric));
+  }, [fullRubric]);
 
   useEffect(() => {
     localStorage.setItem('bars_results', JSON.stringify(results));
@@ -115,6 +130,8 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
       updateSettings,
       rubric,
       setRubric,
+      fullRubric,
+      setFullRubric,
       results,
       updateResult,
       hasStarted,

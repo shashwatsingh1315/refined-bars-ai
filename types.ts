@@ -25,14 +25,16 @@ export interface InterviewResult {
   notes?: string; // Interviewer notes for this parameter
 }
 
-export type AIProvider = 'google' | 'openrouter';
+export type AIProvider = 'google' | 'openrouter' | 'sarvam';
 
 export interface AppSettings {
   provider: AIProvider;
   modelName: string;
   candidateName: string;
+  transcriptionMode: 'batch' | 'live';
   openRouterApiKey?: string;
   googleApiKey?: string;
+  sarvamApiKey?: string;
 }
 
 export interface InterviewContextType {
@@ -40,6 +42,8 @@ export interface InterviewContextType {
   updateSettings: (newSettings: Partial<AppSettings>) => void;
   rubric: RubricItem[];
   setRubric: (rubric: RubricItem[]) => void;
+  fullRubric: RubricItem[];
+  setFullRubric: (rubric: RubricItem[]) => void;
   results: Record<string, InterviewResult>;
   updateResult: (id: string, result: Partial<InterviewResult>) => void;
   hasStarted: boolean;

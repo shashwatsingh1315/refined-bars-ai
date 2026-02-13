@@ -1,5 +1,5 @@
 
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { RubricItem, STARResult, AppSettings } from "../types";
 
 const SYSTEM_INSTRUCTION = `You are a skeptical, high-standards HR Auditor. 
@@ -111,6 +111,14 @@ const getGoogleApiKey = (settings: AppSettings): string => {
   return key;
 };
 
+/**
+ * Creates a GoogleGenAI client from settings.
+ */
+const createGoogleClient = (settings: AppSettings): GoogleGenAI => {
+  const apiKey = getGoogleApiKey(settings);
+  return new GoogleGenAI({ apiKey });
+};
+
 // --- OpenRouter Logic ---
 
 const callOpenRouter = async (
@@ -207,39 +215,78 @@ export const transcribeAudio = async (
   const prompt = "Transcribe audio verbatim. Provide the complete transcript of everything spoken.";
 
   if (settings.provider === 'openrouter') {
-    const rawText = await callOpenRouter(settings, [{
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-        { type: "image_url", image_url: { url: `data:${mimeType};base64,${audioBase64}` } }
-      ]
-    }]);
+    // OpenRouter generic API
+    // We attempt to send the audio as a multimodal input (image_url hack or proper input if supported)
     try {
-      const json = JSON.parse(rawText);
-      // Ensure we get string out even if JSON
-      const val = Object.values(json)[0];
-      return ensureString(val) || rawText;
-    } catch {
-      return rawText;
+      const prompt = "Transcribe this audio verbatim. Output only the text.";
+      const rawText = await callOpenRouter(settings, [{
+        role: "user",
+        content: [
+          {
+            type: "image_url", // Many OpenRouter models use this for multimodal inputs (images/audio)
+            image_url: { url: `data:${mimeType};base64,${audioBase64}` }
+          },
+          { type: "text", text: prompt }
+        ]
+      }]);
+      return rawText.trim();
+    } catch (err: any) {
+      console.warn("OpenRouter Transcription failed:", err);
+      throw new Error(`OpenRouter Transcription failed. Ensure your selected model (${settings.modelName}) supports audio input. Error: ` + err.message);
     }
   }
 
-  // Google Provider
-  const apiKey = getGoogleApiKey(settings);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: settings.modelName,
-    // OVERRIDE system instruction to avoid "Return valid JSON only" conflict
-    systemInstruction: "You are a professional transcriber. Output only the verbatim transcript text. Do NOT use JSON."
-  });
+  // Sarvam Provider
+  if (settings.provider === 'sarvam') {
+    if (!settings.sarvamApiKey) throw new Error("Sarvam API Key is missing.");
+
+    const formData = new FormData();
+    // Convert base64 back to blob for FormData
+    const byteCharacters = atob(audioBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+
+    formData.append('file', blob, 'audio.wav');
+    formData.append('model', 'saaras:v3');
+
+    const response = await fetch('https://api.sarvam.ai/speech-to-text', {
+      method: 'POST',
+      headers: { 'api-subscription-key': settings.sarvamApiKey },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Sarvam Transcription Failed: ${response.status} ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    return data.transcript || "";
+  }
+
+  // Google Provider — using new @google/genai SDK
+  const ai = createGoogleClient(settings);
 
   try {
-    const result = await model.generateContent([
-      { inlineData: { mimeType, data: audioBase64 } },
-      { text: prompt }
-    ]);
-    const response = await result.response;
-    return response.text()?.trim() || "";
+    const response = await ai.models.generateContent({
+      model: settings.modelName,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data: audioBase64 } },
+            { text: prompt }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction: "You are a professional transcriber. Output only the verbatim transcript text. Do NOT use JSON."
+      }
+    });
+    return response.text?.trim() || "";
   } catch (err: any) {
     console.error("Gemini transcription error:", err);
     throw err;
@@ -292,43 +339,46 @@ export const analyzeTranscript = async (
     };
   }
 
-  // Google Provider (Default)
-  const apiKey = getGoogleApiKey(settings);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: settings.modelName,
-    systemInstruction: SYSTEM_INSTRUCTION,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          starUpdate: {
-            type: SchemaType.OBJECT,
-            properties: {
-              situation: { type: SchemaType.STRING },
-              task: { type: SchemaType.STRING },
-              action: { type: SchemaType.STRING },
-              result: { type: SchemaType.STRING },
-            },
-            required: ["situation", "task", "action", "result"]
-          },
-          probingQuestions: {
-            type: SchemaType.ARRAY,
-            items: { type: SchemaType.STRING }
-          }
-        },
-        required: ["starUpdate", "probingQuestions"]
-      }
-    }
-  });
+  // Sarvam Provider - Analysis Not Supported directly via this service yet
+  if (settings.provider === 'sarvam') {
+    throw new Error("Sarvam AI currently supports transcription only. Please select Google or OpenRouter for analysis capabilities.");
+  }
+
+  // Google Provider — using new @google/genai SDK
+  const ai = createGoogleClient(settings);
 
   try {
-    const result = await model.generateContent(promptText);
-    const response = await result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+      model: settings.modelName,
+      contents: promptText,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            starUpdate: {
+              type: "object",
+              properties: {
+                situation: { type: "string" },
+                task: { type: "string" },
+                action: { type: "string" },
+                result: { type: "string" },
+              },
+              required: ["situation", "task", "action", "result"]
+            },
+            probingQuestions: {
+              type: "array",
+              items: { type: "string" }
+            }
+          },
+          required: ["starUpdate", "probingQuestions"]
+        }
+      }
+    });
 
+    const text = response.text;
     if (!text) {
       throw new Error("AI returned an empty response.");
     }
@@ -398,50 +448,53 @@ export const analyzeHolisticSTAR = async (
     return parseCleanJson(rawJson);
   }
 
-  // Google Provider
-  const apiKey = getGoogleApiKey(settings);
-  const genAI = new GoogleGenerativeAI(apiKey);
+  // Sarvam Provider - Analysis Not Supported directly via this service yet
+  if (settings.provider === 'sarvam') {
+    throw new Error("Sarvam AI currently supports transcription only. Please select Google or OpenRouter for holistic analysis.");
+  }
+
+  // Google Provider — using new @google/genai SDK
+  const ai = createGoogleClient(settings);
 
   // Build schema dynamically
   const properties: any = {};
   rubric.forEach(item => {
     properties[item.id] = {
-      type: SchemaType.OBJECT,
+      type: "object",
       properties: {
         starEvidence: {
-          type: SchemaType.OBJECT,
+          type: "object",
           properties: {
-            situation: { type: SchemaType.STRING },
-            task: { type: SchemaType.STRING },
-            action: { type: SchemaType.STRING },
-            result: { type: SchemaType.STRING },
+            situation: { type: "string" },
+            task: { type: "string" },
+            action: { type: "string" },
+            result: { type: "string" },
           },
           required: ["situation", "task", "action", "result"]
         },
-        rating: { type: SchemaType.NUMBER, description: "1 to 4 integer" }
+        rating: { type: "number", description: "1 to 4 integer" }
       },
       required: ["starEvidence", "rating"]
     };
   });
 
-  const model = genAI.getGenerativeModel({
-    model: settings.modelName,
-    systemInstruction: "Extract holistic STAR evidence and assign ratings (1-4). Return JSON map.",
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: properties,
-        required: rubric.map(r => r.id)
-      }
-    }
-  });
-
   try {
-    const result = await model.generateContent(promptText);
-    const response = await result.response;
-    return parseCleanJson(response.text() || '{}');
+    const response = await ai.models.generateContent({
+      model: settings.modelName,
+      contents: promptText,
+      config: {
+        systemInstruction: "Extract holistic STAR evidence and assign ratings (1-4). Return JSON map.",
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: properties,
+          required: rubric.map(r => r.id)
+        }
+      }
+    });
+
+    return parseCleanJson(response.text || '{}');
   } catch (err: any) {
     console.error("Gemini holistic analysis error:", err);
     throw err;
@@ -496,24 +549,27 @@ export const generateMasterTranscript = async (
     }
   }
 
-  // Google Provider
-  const apiKey = getGoogleApiKey(settings);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: settings.modelName,
-    systemInstruction: "You are a professional transcriber. Output only the verbatim transcript.",
-    generationConfig: {
-      temperature: 0.2
-    }
-  });
+  // Google Provider — using new @google/genai SDK
+  const ai = createGoogleClient(settings);
 
   try {
-    const result = await model.generateContent([
-      ...audioParts,
-      { text: prompt }
-    ]);
-    const response = await result.response;
-    return response.text()?.trim() || "No transcript generated.";
+    const response = await ai.models.generateContent({
+      model: settings.modelName,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            ...audioParts,
+            { text: prompt }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction: "You are a professional transcriber. Output only the verbatim transcript.",
+        temperature: 0.2
+      }
+    });
+    return response.text?.trim() || "No transcript generated.";
   } catch (err: any) {
     console.error("Master transcript error:", err);
     throw new Error(`Failed to generate master transcript: ${err.message}`);
@@ -580,47 +636,51 @@ export const regenerateQuestionAnalysis = async (
     };
   }
 
-  // Google Provider (Default)
-  const apiKey = getGoogleApiKey(settings);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: settings.modelName,
-    systemInstruction: SYSTEM_INSTRUCTION,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          transcript: { type: SchemaType.STRING },
-          starUpdate: {
-            type: SchemaType.OBJECT,
-            properties: {
-              situation: { type: SchemaType.STRING },
-              task: { type: SchemaType.STRING },
-              action: { type: SchemaType.STRING },
-              result: { type: SchemaType.STRING },
-            },
-            required: ["situation", "task", "action", "result"]
-          },
-          probingQuestions: {
-            type: SchemaType.ARRAY,
-            items: { type: SchemaType.STRING }
-          }
-        },
-        required: ["transcript", "starUpdate", "probingQuestions"]
-      }
-    }
-  });
+  // Google Provider — using new @google/genai SDK
+  const ai = createGoogleClient(settings);
 
   try {
-    const result = await model.generateContent([
-      ...audioParts,
-      { text: promptText }
-    ]);
-    const response = await result.response;
-    const text = response.text();
-    const parsed = parseCleanJson(text);
+    const response = await ai.models.generateContent({
+      model: settings.modelName,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            ...audioParts,
+            { text: promptText }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.2,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            transcript: { type: "string" },
+            starUpdate: {
+              type: "object",
+              properties: {
+                situation: { type: "string" },
+                task: { type: "string" },
+                action: { type: "string" },
+                result: { type: "string" },
+              },
+              required: ["situation", "task", "action", "result"]
+            },
+            probingQuestions: {
+              type: "array",
+              items: { type: "string" }
+            }
+          },
+          required: ["transcript", "starUpdate", "probingQuestions"]
+        }
+      }
+    });
+
+    const text = response.text;
+    const parsed = parseCleanJson(text || '');
     return {
       ...parsed,
       transcript: ensureString(parsed.transcript)

@@ -52,7 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 onClick={() => setProvider('google')}
-                                className={`p-4 border-[3px] border-black text-left flex items-center gap-3 transition-all ${provider === 'google'
+                                className={`p-4 border-[3px] border-black text-left flex items-center gap-3 transition-all hidden ${provider === 'google'
                                     ? 'bg-main text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
                                     : 'bg-white hover:bg-slate-50'
                                     }`}

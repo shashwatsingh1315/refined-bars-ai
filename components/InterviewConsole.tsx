@@ -6,7 +6,7 @@ import { Button } from './Button';
 import { SettingsModal } from './SettingsModal';
 import {
   ArrowLeft, ArrowRight, CheckCircle2,
-  FileText, Sparkles, MessageSquare, Info, X, LayoutGrid, Zap, AlertCircle, RefreshCcw, Settings2
+  FileText, Sparkles, MessageSquare, Info, X, LayoutGrid, Zap, AlertCircle, RefreshCcw, Settings2, Radio
 } from 'lucide-react';
 import { getQuestionAudio } from '../utils/indexedDb';
 
@@ -17,6 +17,7 @@ export const InterviewConsole: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [probingQuestions, setProbingQuestions] = useState<string[]>([]);
+  const [transcriptionMode, setTranscriptionMode] = useState<'batch' | 'live'>(settings.transcriptionMode || 'batch');
 
   // Initialize currentIndex from localStorage
   const [currentIndex, setCurrentIndex] = useState(() => {
@@ -114,6 +115,70 @@ export const InterviewConsole: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to finalize the question transcription.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ─── LIVE MODE HANDLERS ──────────────────────────
+
+  const handleLiveProbe = async (transcript: string, audioBlob: Blob) => {
+    setIsProcessing(true);
+    setError(null);
+    try {
+      // We already have the transcript from live mode — go straight to analysis
+      const { starUpdate, probingQuestions: newProbes } = await analyzeTranscript(
+        settings,
+        transcript,
+        currentItem,
+        currentResult.transcript,
+        currentResult.starEvidence,
+        true // Generate probing questions
+      );
+
+      const updatedTranscript = currentResult.transcript +
+        (currentResult.transcript ? "\n\n" : "") +
+        "CANDIDATE: " + transcript +
+        "\n\nINTERVIEWER (PROBE): " + (newProbes?.[0] || "");
+
+      updateResult(currentItem.id, {
+        transcript: updatedTranscript,
+        starEvidence: starUpdate,
+      });
+      setProbingQuestions(newProbes || []);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Analysis failed on live transcript.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleLiveFinish = async (transcript: string, audioBlob: Blob) => {
+    setIsProcessing(true);
+    setError(null);
+    try {
+      const updatedTranscript = currentResult.transcript +
+        (currentResult.transcript ? "\n\n" : "") +
+        "CANDIDATE: " + transcript;
+
+      const { starUpdate } = await analyzeTranscript(
+        settings,
+        transcript,
+        currentItem,
+        currentResult.transcript,
+        currentResult.starEvidence,
+        false
+      );
+
+      updateResult(currentItem.id, {
+        transcript: updatedTranscript,
+        starEvidence: starUpdate,
+      });
+      setProbingQuestions([]);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to finalize live transcript.");
     } finally {
       setIsProcessing(false);
     }
@@ -220,10 +285,52 @@ export const InterviewConsole: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Transcription Mode Toggle */}
+            <div className="flex items-center border-[3px] border-black overflow-hidden shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <button
+                onClick={() => setTranscriptionMode('batch')}
+                className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all ${transcriptionMode === 'batch'
+                  ? 'bg-black text-white'
+                  : 'bg-white text-black hover:bg-slate-100'
+                  }`}
+              >
+                Batch
+              </button>
+              <button
+                onClick={() => {
+                  const hasGoogle = !!settings.googleApiKey;
+                  const hasSarvam = !!settings.sarvamApiKey;
+
+                  if (settings.provider === 'google' && !hasGoogle) {
+                    setError('Live mode requires a Google API Key. Please add it in Settings.');
+                    return;
+                  }
+                  if (settings.provider === 'sarvam' && !hasSarvam) {
+                    setError('Live mode requires a Sarvam API Key. Please add it in Settings.');
+                    return;
+                  }
+                  if (settings.provider === 'openrouter' && !hasSarvam) {
+                    setError('Live mode with OpenRouter requires a Sarvam API Key for transcription. Please add it in Settings.');
+                    return;
+                  }
+
+                  // Allow Google, Sarvam, AND OpenRouter (if Sarvam key exists)
+                  setTranscriptionMode('live');
+                }}
+                className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${transcriptionMode === 'live'
+                  ? 'bg-main text-white'
+                  : 'bg-white text-black hover:bg-slate-100'
+                  } `}
+                title={'Real-time transcription'}
+              >
+                <Radio className="w-3 h-3" /> Live
+              </button>
+            </div>
+
+            <div className="h-10 w-[3px] bg-black mx-1"></div>
             <Button variant="outline" size="sm" onClick={() => setShowSettings(true)} className="bg-white hover:bg-slate-100">
               <Settings2 className="w-4 h-4 mr-2" /> Settings
             </Button>
-            <div className="h-10 w-[3px] bg-black mx-1"></div>
             <Button variant="outline" size="sm" onClick={() => setShowRatingGuide(true)} className="bg-secondary">
               <Info className="w-4 h-4 mr-2" /> Rubric
             </Button>
@@ -276,10 +383,16 @@ export const InterviewConsole: React.FC = () => {
               <Recorder
                 onProbe={handleProbe}
                 onFinish={handleFinishQuestion}
+                onLiveProbe={handleLiveProbe}
+                onLiveFinish={handleLiveFinish}
                 isProcessing={isProcessing}
                 onCancelProcessing={() => setIsProcessing(false)}
                 sessionId={sessionId}
                 paramId={currentItem.id}
+                transcriptionMode={transcriptionMode}
+                googleApiKey={settings.googleApiKey}
+                sarvamApiKey={settings.sarvamApiKey}
+                provider={settings.provider}
               />
             </div>
 
