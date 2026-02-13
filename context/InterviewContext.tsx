@@ -24,7 +24,7 @@ export const useInterview = () => {
 export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
-      const saved = localStorage.getItem('bars_settings');
+      const saved = localStorage.getItem('bars_settings_v2');
       if (saved) {
         return { ...defaultSettings, ...JSON.parse(saved) };
       }
@@ -75,7 +75,7 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('bars_settings', JSON.stringify(settings));
+    localStorage.setItem('bars_settings_v2', JSON.stringify(settings));
   }, [settings]);
 
   useEffect(() => {
