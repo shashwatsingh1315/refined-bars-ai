@@ -102,7 +102,12 @@ export async function startLiveTranscription(
     callbacks.onStatusChange('connecting');
 
     try {
-        const ai = new GoogleGenAI({ apiKey: googleApiKey });
+        const ai = new GoogleGenAI({
+            apiKey: googleApiKey,
+            httpOptions: {
+                apiVersion: 'v1alpha'
+            }
+        });
 
         const config = {
             responseModalities: [Modality.TEXT],
@@ -124,10 +129,10 @@ export async function startLiveTranscription(
             isActive: true,
         };
 
-        // Connect to Gemini Live API
-        // Use the correct model name for the Gemini API Live endpoint
-        const liveModel = 'gemini-2.0-flash-live-001';
-        console.log('[Live] Connecting to model:', liveModel);
+        //Connect to Gemini Live API
+        // Use gemini-2.5-flash-native-audio-preview-12-2025 (confirmed Live API model)
+        const liveModel = 'gemini-2.5-flash-native-audio-preview-12-2025';
+        console.log('[Live] Connecting to model:', liveModel, 'with API version: v1alpha');
 
         const liveSession = await ai.live.connect({
             model: liveModel,
