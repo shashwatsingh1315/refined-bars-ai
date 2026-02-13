@@ -5,6 +5,8 @@ import { Button } from './Button';
 import { saveAudioBackup } from '../utils/indexedDb';
 import { startLiveTranscription, stopLiveTranscription, isLiveActive } from '../services/liveTranscriptionService';
 
+import { AIProvider } from '../types';
+
 interface RecorderProps {
   onProbe: (audioBase64: string, mimeType: string) => Promise<void>;
   onFinish: (audioBase64: string, mimeType: string) => Promise<void>;
@@ -16,13 +18,15 @@ interface RecorderProps {
   paramId: string;
   transcriptionMode: 'batch' | 'live';
   googleApiKey?: string;
+  sarvamApiKey?: string;
+  provider?: AIProvider;
 }
 
 export const Recorder: React.FC<RecorderProps> = ({
   onProbe, onFinish, onLiveProbe, onLiveFinish,
   isProcessing, onCancelProcessing,
   sessionId, paramId,
-  transcriptionMode, googleApiKey,
+  transcriptionMode, googleApiKey, sarvamApiKey, provider
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [timer, setTimer] = useState(0);
@@ -112,16 +116,43 @@ export const Recorder: React.FC<RecorderProps> = ({
     setLiveTranscript('');
     setLiveStatus('connecting');
 
-    if (!googleApiKey) {
-      setError("Google API Key is required for live transcription. Please add it in Settings.");
-      setLiveStatus('idle');
-      return;
+    let apiKey = '';
+
+    // Determine API Key based on provider
+    // Note: Currently startLiveTranscription is implemented only for Sarvam
+    // If we want to support Google Live again, we'd need to update the service to handle both.
+
+    if (provider === 'sarvam' || provider === 'openrouter') {
+      if (!sarvamApiKey) {
+        setError("Sarvam API Key is required for live transcription. Please add it in Settings.");
+        setLiveStatus('idle');
+        return;
+      }
+      apiKey = sarvamApiKey;
+    } else {
+      // Fallback or default to Google if not Sarvam (legacy behavior)
+      // But warning: service might be Sarvam-only now
+      if (!googleApiKey) {
+        setError("Google API Key is required. Please add it in Settings.");
+        setLiveStatus('idle');
+        return;
+      }
+      apiKey = googleApiKey;
     }
 
+
     try {
-      await startLiveTranscription(googleApiKey, {
+      // Default model names if not provided in settings (though they should be)
+      // For OpenRouter live mode, we use Sarvam for transcription, so we force saaras:v3 or similar
+      const transcriptionModel = (provider === 'sarvam' || provider === 'openrouter') ? 'saaras:v3' : 'gemini-2.5-flash';
+
+      // We pass the effective provider for transcription. 
+      // If user selected OpenRouter, we tell the service to act like 'sarvam' for the transcription part.
+      const transcriptionProvider = provider === 'openrouter' ? 'sarvam' : provider;
+
+      await startLiveTranscription(apiKey, transcriptionProvider || 'google', transcriptionModel, {
         onTranscript: (text, _isFinal) => {
-          setLiveTranscript(text);
+          setLiveTranscript(prev => prev + text); // Append for chunked REST
         },
         onError: (err) => {
           setError(err.message);
@@ -140,6 +171,7 @@ export const Recorder: React.FC<RecorderProps> = ({
       setLiveStatus('idle');
     }
   };
+
 
   const handleLiveStop = async (callback?: (transcript: string, audioBlob: Blob) => Promise<void>) => {
     setIsRecording(false);

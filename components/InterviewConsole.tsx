@@ -298,17 +298,30 @@ export const InterviewConsole: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  if (!settings.googleApiKey) {
+                  const hasGoogle = !!settings.googleApiKey;
+                  const hasSarvam = !!settings.sarvamApiKey;
+
+                  if (settings.provider === 'google' && !hasGoogle) {
                     setError('Live mode requires a Google API Key. Please add it in Settings.');
                     return;
                   }
+                  if (settings.provider === 'sarvam' && !hasSarvam) {
+                    setError('Live mode requires a Sarvam API Key. Please add it in Settings.');
+                    return;
+                  }
+                  if (settings.provider === 'openrouter' && !hasSarvam) {
+                    setError('Live mode with OpenRouter requires a Sarvam API Key for transcription. Please add it in Settings.');
+                    return;
+                  }
+
+                  // Allow Google, Sarvam, AND OpenRouter (if Sarvam key exists)
                   setTranscriptionMode('live');
                 }}
                 className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${transcriptionMode === 'live'
                   ? 'bg-main text-white'
                   : 'bg-white text-black hover:bg-slate-100'
-                  } ${!settings.googleApiKey ? 'opacity-40 cursor-not-allowed' : ''}`}
-                title={!settings.googleApiKey ? 'Requires Google API Key' : 'Real-time transcription via Gemini Live'}
+                  } `}
+                title={'Real-time transcription'}
               >
                 <Radio className="w-3 h-3" /> Live
               </button>
@@ -378,6 +391,8 @@ export const InterviewConsole: React.FC = () => {
                 paramId={currentItem.id}
                 transcriptionMode={transcriptionMode}
                 googleApiKey={settings.googleApiKey}
+                sarvamApiKey={settings.sarvamApiKey}
+                provider={settings.provider}
               />
             </div>
 

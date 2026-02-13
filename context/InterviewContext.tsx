@@ -64,6 +64,16 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
     return localStorage.getItem('bars_sessionId') || crypto.randomUUID();
   });
 
+  const [fullRubric, setFullRubric] = useState<RubricItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('bars_fullRubric');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse fullRubric:", e);
+      return [];
+    }
+  });
+
   useEffect(() => {
     localStorage.setItem('bars_settings', JSON.stringify(settings));
   }, [settings]);
@@ -71,6 +81,10 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('bars_rubric', JSON.stringify(rubric));
   }, [rubric]);
+
+  useEffect(() => {
+    localStorage.setItem('bars_fullRubric', JSON.stringify(fullRubric));
+  }, [fullRubric]);
 
   useEffect(() => {
     localStorage.setItem('bars_results', JSON.stringify(results));
@@ -116,6 +130,8 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
       updateSettings,
       rubric,
       setRubric,
+      fullRubric,
+      setFullRubric,
       results,
       updateResult,
       hasStarted,

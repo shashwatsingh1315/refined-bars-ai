@@ -220,7 +220,18 @@ export const SummaryScreen: React.FC = () => {
                         ].map(s => (
                           <div key={s.label} className={`p-4 border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.15)] ${s.color}`}>
                             <span className="text-[10px] font-black uppercase text-black italic tracking-wider block mb-1">{s.label}</span>
-                            <p className="text-xs text-black font-bold leading-relaxed">{s.val || 'Evidence missing.'}</p>
+                            <textarea
+                              value={s.val || ''}
+                              onChange={(e) => {
+                                // Deep update starEvidence
+                                const newStar = { ...(result?.starEvidence || { situation: '', task: '', action: '', result: '' }) };
+                                // @ts-ignore
+                                newStar[s.label.toLowerCase()] = e.target.value;
+                                updateResult(item.id, { starEvidence: newStar, isEdited: true });
+                              }}
+                              className="w-full bg-transparent text-xs text-black font-bold leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-black/20 min-h-[3rem]"
+                              placeholder={`Enter ${s.label}...`}
+                            />
                           </div>
                         ))}
                       </div>
@@ -230,18 +241,21 @@ export const SummaryScreen: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Notes Section */}
-                    {result?.notes && (
-                      <div className="space-y-3 mt-6">
-                        <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-main text-white w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                          <FileText className="w-4 h-4 text-black" />
-                          <h4 className="text-[11px] font-black text-black uppercase tracking-widest">Interviewer Notes</h4>
-                        </div>
-                        <div className="p-4 border-[3px] border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.15)]">
-                          <p className="text-xs text-black font-bold leading-relaxed whitespace-pre-wrap">{result.notes}</p>
-                        </div>
+                    {/* Notes Section - Always Visible & Editable */}
+                    <div className="space-y-3 mt-6">
+                      <div className="flex items-center gap-3 px-2 py-1 border-2 border-black bg-main text-white w-fit shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                        <FileText className="w-4 h-4 text-black" />
+                        <h4 className="text-[11px] font-black text-black uppercase tracking-widest">Interviewer Notes</h4>
                       </div>
-                    )}
+                      <div className="p-4 border-[3px] border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.15)]">
+                        <textarea
+                          value={result?.notes || ''}
+                          onChange={(e) => updateResult(item.id, { notes: e.target.value, isEdited: true })}
+                          className="w-full bg-transparent text-xs text-black font-bold leading-relaxed whitespace-pre-wrap resize-none focus:outline-none min-h-[4rem]"
+                          placeholder="Add notes..."
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Rubric anchors */}

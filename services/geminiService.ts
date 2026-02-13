@@ -215,21 +215,56 @@ export const transcribeAudio = async (
   const prompt = "Transcribe audio verbatim. Provide the complete transcript of everything spoken.";
 
   if (settings.provider === 'openrouter') {
-    const rawText = await callOpenRouter(settings, [{
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-        { type: "image_url", image_url: { url: `data:${mimeType};base64,${audioBase64}` } }
-      ]
-    }]);
+    // OpenRouter generic API
+    // We attempt to send the audio as a multimodal input (image_url hack or proper input if supported)
     try {
-      const json = JSON.parse(rawText);
-      // Ensure we get string out even if JSON
-      const val = Object.values(json)[0];
-      return ensureString(val) || rawText;
-    } catch {
-      return rawText;
+      const prompt = "Transcribe this audio verbatim. Output only the text.";
+      const rawText = await callOpenRouter(settings, [{
+        role: "user",
+        content: [
+          {
+            type: "image_url", // Many OpenRouter models use this for multimodal inputs (images/audio)
+            image_url: { url: `data:${mimeType};base64,${audioBase64}` }
+          },
+          { type: "text", text: prompt }
+        ]
+      }]);
+      return rawText.trim();
+    } catch (err: any) {
+      console.warn("OpenRouter Transcription failed:", err);
+      throw new Error(`OpenRouter Transcription failed. Ensure your selected model (${settings.modelName}) supports audio input. Error: ` + err.message);
     }
+  }
+
+  // Sarvam Provider
+  if (settings.provider === 'sarvam') {
+    if (!settings.sarvamApiKey) throw new Error("Sarvam API Key is missing.");
+
+    const formData = new FormData();
+    // Convert base64 back to blob for FormData
+    const byteCharacters = atob(audioBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+
+    formData.append('file', blob, 'audio.wav');
+    formData.append('model', 'saaras:v3');
+
+    const response = await fetch('https://api.sarvam.ai/speech-to-text', {
+      method: 'POST',
+      headers: { 'api-subscription-key': settings.sarvamApiKey },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Sarvam Transcription Failed: ${response.status} ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    return data.transcript || "";
   }
 
   // Google Provider — using new @google/genai SDK
@@ -302,6 +337,11 @@ export const analyzeTranscript = async (
       starUpdate: parsed.starUpdate || { situation: '', task: '', action: '', result: '' },
       probingQuestions: parsed.probingQuestions || []
     };
+  }
+
+  // Sarvam Provider - Analysis Not Supported directly via this service yet
+  if (settings.provider === 'sarvam') {
+    throw new Error("Sarvam AI currently supports transcription only. Please select Google or OpenRouter for analysis capabilities.");
   }
 
   // Google Provider — using new @google/genai SDK
@@ -406,6 +446,11 @@ export const analyzeHolisticSTAR = async (
       content: [{ type: "text", text: promptText }]
     }], "Return JSON map: keys=IDs, values={ starEvidence: {situation, task, action, result}, rating: number }");
     return parseCleanJson(rawJson);
+  }
+
+  // Sarvam Provider - Analysis Not Supported directly via this service yet
+  if (settings.provider === 'sarvam') {
+    throw new Error("Sarvam AI currently supports transcription only. Please select Google or OpenRouter for holistic analysis.");
   }
 
   // Google Provider — using new @google/genai SDK
