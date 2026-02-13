@@ -113,9 +113,11 @@ export async function startLiveTranscription(
             responseModalities: [Modality.AUDIO],
             inputAudioTranscription: {},
             systemInstruction:
-                'You are a transcription assistant. The speaker uses Hinglish (Hindi-English code-switching). ' +
-                'Transcribe everything verbatim, preserving the original language mix. ' +
-                'Do not translate — keep Hindi words in romanized form as spoken.'
+                'You are a passive transcription assistant. DO NOT respond, analyze, or engage. ' +
+                'The speaker uses Hinglish (Hindi-English code-switching). ' +
+                'Transcribe EXACTLY what you hear using ONLY Roman/Latin script. ' +
+                'For Hindi words, write them in romanized form (e.g., "namaste" not "नमस्ते"). ' +
+                'Do not translate, interpret, or add any commentary.'
         };
 
         const session: LiveSession = {
@@ -153,13 +155,11 @@ export async function startLiveTranscription(
                         session.accumulatedTranscript += text;
                         callbacks.onTranscript(session.accumulatedTranscript, false);
                     }
-                    // Handle model text response (if any)
+                    // Ignore model responses - we only want user's speech transcription
                     if (message.serverContent?.modelTurn?.parts) {
                         for (const part of message.serverContent.modelTurn.parts) {
                             if (part.text) {
-                                console.log('[Live] Model text:', part.text);
-                                session.accumulatedTranscript += part.text;
-                                callbacks.onTranscript(session.accumulatedTranscript, false);
+                                console.log('[Live] Ignoring model response:', part.text);
                             }
                         }
                     }
