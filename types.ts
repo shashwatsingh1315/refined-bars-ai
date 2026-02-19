@@ -35,6 +35,7 @@ export interface AppSettings {
   openRouterApiKey?: string;
   googleApiKey?: string;
   sarvamApiKey?: string;
+  isAuthenticated?: boolean;
 }
 
 export interface InterviewContextType {

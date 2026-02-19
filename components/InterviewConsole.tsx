@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useInterview } from '../context/InterviewContext';
-import { analyzeAndProbe, transcribeAudio, analyzeTranscript, regenerateQuestionAnalysis } from '../services/geminiService';
+import { transcribeAudio, analyzeTranscript, regenerateQuestionAnalysis } from '../services/geminiService';
 import { Recorder } from './Recorder';
 import { Button } from './Button';
 import { SettingsModal } from './SettingsModal';
 import {
   ArrowLeft, ArrowRight, CheckCircle2,
-  FileText, Sparkles, MessageSquare, Info, X, LayoutGrid, Zap, AlertCircle, RefreshCcw, Settings2, Radio
+  FileText, Sparkles, MessageSquare, Info, X, LayoutGrid, Zap, AlertCircle, RefreshCcw, Settings2, Radio,
+  Menu, PanelRightOpen, PanelRightClose
 } from 'lucide-react';
 import { getQuestionAudio } from '../utils/indexedDb';
 
@@ -18,6 +19,8 @@ export const InterviewConsole: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [probingQuestions, setProbingQuestions] = useState<string[]>([]);
   const [transcriptionMode, setTranscriptionMode] = useState<'batch' | 'live'>(settings.transcriptionMode || 'batch');
+  const [showLeftSidebar, setShowLeftSidebar] = useState(false);
+  const [showRightSidebar, setShowRightSidebar] = useState(false);
 
   // Initialize currentIndex from localStorage
   const [currentIndex, setCurrentIndex] = useState(() => {
@@ -51,94 +54,65 @@ export const InterviewConsole: React.FC = () => {
     }
   };
 
-  const handleProbe = async (audioBase64: string, mimeType: string) => {
-    setIsProcessing(true);
+  // ─── PHASE 2: STOP & TRANSCRIBE ONLY ─────────────
+
+  // Batch mode: transcribe audio → update transcript log (no analysis)
+  const handleStopAndTranscribe = async (audioBase64: string, mimeType: string) => {
     setError(null);
     try {
-      const { newTranscriptSnippet, starUpdate, probingQuestions } = await analyzeAndProbe(
-        settings, // Pass full settings object (provider + key + model)
-        audioBase64,
-        mimeType,
-        currentItem,
-        currentResult.transcript,
-        currentResult.starEvidence
-      );
-
-      const updatedTranscript = currentResult.transcript +
-        (currentResult.transcript ? "\n\n" : "") +
-        "CANDIDATE: " + (newTranscriptSnippet || "") +
-        "\n\nINTERVIEWER (PROBE): " + (probingQuestions?.[0] || "");
-
-      updateResult(currentItem.id, {
-        transcript: updatedTranscript,
-        starEvidence: starUpdate
-      });
-      setProbingQuestions(probingQuestions || []);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "An unexpected error occurred during analysis.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleFinishQuestion = async (audioBase64: string, mimeType: string) => {
-    setIsProcessing(true);
-    setError(null);
-    try {
-      // Step 1: Transcribe the audio completely
-      const transcript = await transcribeAudio(
-        settings,
-        audioBase64,
-        mimeType
-      );
-
+      const transcript = await transcribeAudio(settings, audioBase64, mimeType);
       const updatedTranscript = currentResult.transcript +
         (currentResult.transcript ? "\n\n" : "") +
         "CANDIDATE: " + (transcript || "");
 
-      // Step 2: Analyze the transcript for STAR evidence (no probing questions needed)
-      const { starUpdate } = await analyzeTranscript(
-        settings,
-        transcript,
-        currentItem,
-        currentResult.transcript,
-        currentResult.starEvidence,
-        false // Do NOT generate probing questions (question is finished)
-      );
-
-      updateResult(currentItem.id, {
-        transcript: updatedTranscript,
-        starEvidence: starUpdate
-      });
-      setProbingQuestions([]); // Clear probing questions since we're done
+      updateResult(currentItem.id, { transcript: updatedTranscript });
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to finalize the question transcription.");
-    } finally {
-      setIsProcessing(false);
+      throw err; // Let Recorder handle the error display
     }
   };
 
-  // ─── LIVE MODE HANDLERS ──────────────────────────
+  // Live mode: transcript already captured — just append to log (no analysis)
+  const handleLiveStopAndTranscribe = async (transcript: string, _audioBlob: Blob) => {
+    setError(null);
+    try {
+      const updatedTranscript = currentResult.transcript +
+        (currentResult.transcript ? "\n\n" : "") +
+        "CANDIDATE: " + transcript;
 
-  const handleLiveProbe = async (transcript: string, audioBlob: Blob) => {
+      updateResult(currentItem.id, { transcript: updatedTranscript });
+    } catch (err: any) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  // ─── PHASE 3: ANALYZE EXISTING TRANSCRIPT ──────────
+
+  // Analyze & Probe: run analysis on already-transcribed text
+  const handleAnalyzeProbe = async () => {
     setIsProcessing(true);
     setError(null);
     try {
-      // We already have the transcript from live mode — go straight to analysis
+      if (!currentResult.transcript) {
+        throw new Error("No transcript to analyze. Please record a response first.");
+      }
+
+      // Get the latest snippet (text after last "CANDIDATE: ")
+      const parts = currentResult.transcript.split("CANDIDATE: ");
+      const latestSnippet = parts[parts.length - 1]?.trim() || currentResult.transcript;
+
       const { starUpdate, probingQuestions: newProbes } = await analyzeTranscript(
         settings,
-        transcript,
+        latestSnippet,
         currentItem,
         currentResult.transcript,
         currentResult.starEvidence,
         true // Generate probing questions
       );
 
+      // Append probe to transcript
       const updatedTranscript = currentResult.transcript +
-        (currentResult.transcript ? "\n\n" : "") +
-        "CANDIDATE: " + transcript +
         "\n\nINTERVIEWER (PROBE): " + (newProbes?.[0] || "");
 
       updateResult(currentItem.id, {
@@ -148,41 +122,46 @@ export const InterviewConsole: React.FC = () => {
       setProbingQuestions(newProbes || []);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Analysis failed on live transcript.");
+      setError(err.message || "Analysis failed.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleLiveFinish = async (transcript: string, audioBlob: Blob) => {
+  // End Question: run analysis without probes
+  const handleAnalyzeFinish = async () => {
     setIsProcessing(true);
     setError(null);
     try {
-      const updatedTranscript = currentResult.transcript +
-        (currentResult.transcript ? "\n\n" : "") +
-        "CANDIDATE: " + transcript;
+      if (!currentResult.transcript) {
+        throw new Error("No transcript to analyze. Please record a response first.");
+      }
+
+      const parts = currentResult.transcript.split("CANDIDATE: ");
+      const latestSnippet = parts[parts.length - 1]?.trim() || currentResult.transcript;
 
       const { starUpdate } = await analyzeTranscript(
         settings,
-        transcript,
+        latestSnippet,
         currentItem,
         currentResult.transcript,
         currentResult.starEvidence,
-        false
+        false // No probing questions
       );
 
       updateResult(currentItem.id, {
-        transcript: updatedTranscript,
         starEvidence: starUpdate,
       });
       setProbingQuestions([]);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to finalize live transcript.");
+      setError(err.message || "Failed to finalize the question.");
     } finally {
       setIsProcessing(false);
     }
   };
+
+  // ─── LEGACY: REGENERATE ────────────────────────────
 
   const handleRegenerate = async () => {
     setIsProcessing(true);
@@ -218,9 +197,17 @@ export const InterviewConsole: React.FC = () => {
 
 
   return (
-    <div className="flex h-screen font-sans overflow-hidden bg-white">
+    <div className="flex h-screen font-sans overflow-hidden bg-white relative">
+      {/* Mobile overlay backdrop */}
+      {(showLeftSidebar || showRightSidebar) && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 xl:hidden"
+          onClick={() => { setShowLeftSidebar(false); setShowRightSidebar(false); }}
+        />
+      )}
+
       {/* Sidebar - Navigation */}
-      <aside className="w-80 bg-secondary border-r-[3px] border-black flex flex-col shrink-0">
+      <aside className={`w-72 xl:w-80 bg-secondary border-r-[3px] border-black flex flex-col shrink-0 fixed xl:relative inset-y-0 left-0 z-40 transition-transform duration-200 ${showLeftSidebar ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'}`}>
 
         {/* Header */}
         <div className="p-6 border-b-[3px] border-black bg-main">
@@ -280,19 +267,26 @@ export const InterviewConsole: React.FC = () => {
       < main className="flex-1 flex flex-col min-w-0 bg-white z-10" >
 
         {/* Header */}
-        < header className="px-8 h-20 border-b-[3px] border-black flex items-center justify-between bg-white" >
+        < header className="px-4 xl:px-8 py-3 xl:py-0 xl:h-20 border-b-[3px] border-black flex flex-wrap items-center justify-between gap-2 bg-white" >
 
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex w-12 h-12 border-[3px] border-black bg-quat items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-2 xl:gap-4 min-w-0">
+            {/* Mobile nav toggle */}
+            <button
+              onClick={() => setShowLeftSidebar(!showLeftSidebar)}
+              className="xl:hidden w-10 h-10 border-[3px] border-black bg-white flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="hidden xl:flex w-12 h-12 border-[3px] border-black bg-quat items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
               <MessageSquare className="w-6 h-6 text-black" />
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-[10px] font-black text-black uppercase tracking-widest block opacity-60">{currentItem.competency}</span>
-              <h1 className="text-xl font-black text-black uppercase tracking-tight leading-tight truncate max-w-xs">{currentItem.parameter}</h1>
+              <h1 className="text-base xl:text-xl font-black text-black uppercase tracking-tight leading-tight truncate max-w-[200px] xl:max-w-xs">{currentItem.parameter}</h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 xl:gap-3 flex-wrap">
             {/* Transcription Mode Toggle */}
             <div className="flex items-center border-[3px] border-black overflow-hidden shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
               <button
@@ -322,7 +316,6 @@ export const InterviewConsole: React.FC = () => {
                     return;
                   }
 
-                  // Allow Google, Sarvam, AND OpenRouter (if Sarvam key exists)
                   setTranscriptionMode('live');
                 }}
                 className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${transcriptionMode === 'live'
@@ -335,12 +328,12 @@ export const InterviewConsole: React.FC = () => {
               </button>
             </div>
 
-            <div className="h-10 w-[3px] bg-black mx-1"></div>
+            <div className="hidden xl:block h-10 w-[3px] bg-black mx-1"></div>
             <Button variant="outline" size="sm" onClick={() => setShowSettings(true)} className="bg-white hover:bg-slate-100">
-              <Settings2 className="w-4 h-4 mr-2" /> Settings
+              <Settings2 className="w-4 h-4" /><span className="hidden xl:inline ml-2">Settings</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setShowRatingGuide(true)} className="bg-secondary">
-              <Info className="w-4 h-4 mr-2" /> Rubric
+              <Info className="w-4 h-4" /><span className="hidden xl:inline ml-2">Rubric</span>
             </Button>
 
             <Button
@@ -353,7 +346,7 @@ export const InterviewConsole: React.FC = () => {
             >
               <RefreshCcw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
             </Button>
-            <div className="h-10 w-[3px] bg-black mx-1"></div>
+            <div className="hidden xl:block h-10 w-[3px] bg-black mx-1"></div>
             <Button onClick={() => { setCurrentIndex(Math.max(0, currentIndex - 1)); setError(null); }} disabled={currentIndex === 0} variant="outline" size="sm">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -361,15 +354,23 @@ export const InterviewConsole: React.FC = () => {
               {currentIndex === rubric.length - 1 ? 'Final Report' : 'Next'}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
+            {/* Mobile analysis panel toggle */}
+            <button
+              onClick={() => setShowRightSidebar(!showRightSidebar)}
+              className="xl:hidden w-10 h-10 border-[3px] border-black bg-slate-50 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              title="Toggle AI Analysis Panel"
+            >
+              {showRightSidebar ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
+            </button>
           </div>
         </header >
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-12">
+        <div className="flex-1 overflow-y-auto p-4 xl:p-8 space-y-8 xl:space-y-12">
           {/* Question Display */}
-          <div className="max-w-3xl mx-auto space-y-12">
-            <div className="bg-main border-[3px] border-black p-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
+          <div className="max-w-3xl mx-auto space-y-8 xl:space-y-12">
+            <div className="bg-main border-[3px] border-black p-6 xl:p-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] xl:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
               <span className="absolute -top-4 left-8 px-3 py-1 bg-black text-[10px] font-black text-white uppercase tracking-widest border-[3px] border-black">Interview Question</span>
-              <p className="text-2xl font-black text-black leading-tight italic">
+              <p className="text-lg xl:text-2xl font-black text-black leading-tight italic">
                 "{currentItem.question}"
               </p>
             </div>
@@ -389,10 +390,10 @@ export const InterviewConsole: React.FC = () => {
                 </div>
               )}
               <Recorder
-                onProbe={handleProbe}
-                onFinish={handleFinishQuestion}
-                onLiveProbe={handleLiveProbe}
-                onLiveFinish={handleLiveFinish}
+                onStopAndTranscribe={handleStopAndTranscribe}
+                onLiveStopAndTranscribe={handleLiveStopAndTranscribe}
+                onAnalyzeProbe={handleAnalyzeProbe}
+                onAnalyzeFinish={handleAnalyzeFinish}
                 isProcessing={isProcessing}
                 onCancelProcessing={() => setIsProcessing(false)}
                 sessionId={sessionId}
@@ -401,6 +402,7 @@ export const InterviewConsole: React.FC = () => {
                 googleApiKey={settings.googleApiKey}
                 sarvamApiKey={settings.sarvamApiKey}
                 provider={settings.provider}
+                hasTranscript={!!currentResult.transcript}
               />
             </div>
 
@@ -445,7 +447,7 @@ export const InterviewConsole: React.FC = () => {
       </main >
 
       {/* Right Panel - Analysis */}
-      <aside className="w-80 border-l-[3px] border-black flex flex-col shrink-0 bg-slate-50">
+      <aside className={`w-72 xl:w-80 border-l-[3px] border-black flex flex-col shrink-0 bg-slate-50 fixed xl:relative inset-y-0 right-0 z-40 transition-transform duration-200 ${showRightSidebar ? 'translate-x-0' : 'translate-x-full xl:translate-x-0'}`}>
         <div className="p-6 border-b-[3px] border-black bg-white">
           <div className="flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-black" />

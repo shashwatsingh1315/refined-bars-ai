@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Loader2, Zap, XCircle, Radio } from 'lucide-react';
+import { Mic, Square, Loader2, Zap, XCircle, Radio, Plus } from 'lucide-react';
 import { Button } from './Button';
 import { saveAudioBackup } from '../utils/indexedDb';
 import { startLiveTranscription, stopLiveTranscription, isLiveActive } from '../services/liveTranscriptionService';
@@ -8,10 +8,12 @@ import { startLiveTranscription, stopLiveTranscription, isLiveActive } from '../
 import { AIProvider } from '../types';
 
 interface RecorderProps {
-  onProbe: (audioBase64: string, mimeType: string) => Promise<void>;
-  onFinish: (audioBase64: string, mimeType: string) => Promise<void>;
-  onLiveProbe?: (transcript: string, audioBlob: Blob) => Promise<void>;
-  onLiveFinish?: (transcript: string, audioBlob: Blob) => Promise<void>;
+  // Phase 2: Stop & Transcribe only
+  onStopAndTranscribe: (audioBase64: string, mimeType: string) => Promise<void>;
+  onLiveStopAndTranscribe?: (transcript: string, audioBlob: Blob) => Promise<void>;
+  // Phase 3: Analyze actions (text-only, no audio)
+  onAnalyzeProbe: () => Promise<void>;
+  onAnalyzeFinish: () => Promise<void>;
   isProcessing: boolean;
   onCancelProcessing?: () => void;
   sessionId: string;
@@ -20,15 +22,20 @@ interface RecorderProps {
   googleApiKey?: string;
   sarvamApiKey?: string;
   provider?: AIProvider;
+  hasTranscript: boolean; // Whether there's already transcript text for this question
 }
 
+type RecorderPhase = 'idle' | 'recording' | 'transcribing' | 'ready';
+
 export const Recorder: React.FC<RecorderProps> = ({
-  onProbe, onFinish, onLiveProbe, onLiveFinish,
+  onStopAndTranscribe, onLiveStopAndTranscribe,
+  onAnalyzeProbe, onAnalyzeFinish,
   isProcessing, onCancelProcessing,
   sessionId, paramId,
-  transcriptionMode, googleApiKey, sarvamApiKey, provider
+  transcriptionMode, googleApiKey, sarvamApiKey, provider,
+  hasTranscript
 }) => {
-  const [isRecording, setIsRecording] = useState(false);
+  const [phase, setPhase] = useState<RecorderPhase>(hasTranscript ? 'ready' : 'idle');
   const [timer, setTimer] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [liveTranscript, setLiveTranscript] = useState<string>('');
@@ -38,6 +45,15 @@ export const Recorder: React.FC<RecorderProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+
+  // Update phase when hasTranscript changes (e.g., navigating between questions)
+  useEffect(() => {
+    if (hasTranscript && phase === 'idle') {
+      setPhase('ready');
+    } else if (!hasTranscript && phase === 'ready') {
+      setPhase('idle');
+    }
+  }, [hasTranscript]);
 
   useEffect(() => {
     return () => {
@@ -61,7 +77,7 @@ export const Recorder: React.FC<RecorderProps> = ({
       };
 
       recorder.start(1000);
-      setIsRecording(true);
+      setPhase('recording');
       setTimer(0);
       timerRef.current = window.setInterval(() => setTimer(t => t + 1), 1000);
     } catch (err) {
@@ -69,14 +85,15 @@ export const Recorder: React.FC<RecorderProps> = ({
     }
   };
 
-  const handleBatchStop = (callback: (base64: string, type: string) => Promise<void>) => {
-    if (!mediaRecorderRef.current || !isRecording) return;
+  const stopBatchRecording = () => {
+    if (!mediaRecorderRef.current || phase !== 'recording') return;
 
     const recorder = mediaRecorderRef.current;
 
     recorder.onstop = async () => {
       if (chunksRef.current.length === 0) {
         setError("No audio captured. Please try recording again.");
+        setPhase('idle');
         return;
       }
 
@@ -86,18 +103,27 @@ export const Recorder: React.FC<RecorderProps> = ({
 
       const reader = new FileReader();
 
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const result = reader.result as string;
         if (!result) {
           setError("Failed to process audio file.");
+          setPhase('idle');
           return;
         }
         const base64String = result.split(',')[1];
-        callback(base64String, blob.type);
+        setPhase('transcribing');
+        try {
+          await onStopAndTranscribe(base64String, blob.type);
+          setPhase('ready');
+        } catch (err: any) {
+          setError(err.message || "Transcription failed.");
+          setPhase('idle');
+        }
       };
 
       reader.onerror = () => {
         setError("Error reading audio data.");
+        setPhase('idle');
       };
 
       reader.readAsDataURL(blob);
@@ -105,7 +131,6 @@ export const Recorder: React.FC<RecorderProps> = ({
     };
 
     recorder.stop();
-    setIsRecording(false);
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
@@ -118,10 +143,6 @@ export const Recorder: React.FC<RecorderProps> = ({
 
     let apiKey = '';
 
-    // Determine API Key based on provider
-    // Note: Currently startLiveTranscription is implemented only for Sarvam
-    // If we want to support Google Live again, we'd need to update the service to handle both.
-
     if (provider === 'sarvam' || provider === 'openrouter') {
       if (!sarvamApiKey) {
         setError("Sarvam API Key is required for live transcription. Please add it in Settings.");
@@ -130,8 +151,6 @@ export const Recorder: React.FC<RecorderProps> = ({
       }
       apiKey = sarvamApiKey;
     } else {
-      // Fallback or default to Google if not Sarvam (legacy behavior)
-      // But warning: service might be Sarvam-only now
       if (!googleApiKey) {
         setError("Google API Key is required. Please add it in Settings.");
         setLiveStatus('idle');
@@ -140,19 +159,13 @@ export const Recorder: React.FC<RecorderProps> = ({
       apiKey = googleApiKey;
     }
 
-
     try {
-      // Default model names if not provided in settings (though they should be)
-      // For OpenRouter live mode, we use Sarvam for transcription, so we force saaras:v3 or similar
       const transcriptionModel = (provider === 'sarvam' || provider === 'openrouter') ? 'saaras:v3' : 'gemini-2.5-flash';
-
-      // We pass the effective provider for transcription. 
-      // If user selected OpenRouter, we tell the service to act like 'sarvam' for the transcription part.
       const transcriptionProvider = provider === 'openrouter' ? 'sarvam' : provider;
 
       await startLiveTranscription(apiKey, transcriptionProvider || 'google', transcriptionModel, {
         onTranscript: (text, _isFinal) => {
-          setLiveTranscript(prev => prev + text); // Append for chunked REST
+          setLiveTranscript(prev => prev + text);
         },
         onError: (err) => {
           setError(err.message);
@@ -163,7 +176,7 @@ export const Recorder: React.FC<RecorderProps> = ({
         },
       });
 
-      setIsRecording(true);
+      setPhase('recording');
       setTimer(0);
       timerRef.current = window.setInterval(() => setTimer(t => t + 1), 1000);
     } catch (err: any) {
@@ -172,12 +185,11 @@ export const Recorder: React.FC<RecorderProps> = ({
     }
   };
 
-
-  const handleLiveStop = async (callback?: (transcript: string, audioBlob: Blob) => Promise<void>) => {
-    setIsRecording(false);
+  const stopLiveRecording = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
 
     try {
+      setPhase('transcribing');
       const { transcript, audioBlob } = await stopLiveTranscription();
 
       // Save backup
@@ -185,14 +197,19 @@ export const Recorder: React.FC<RecorderProps> = ({
 
       setLiveStatus('idle');
 
-      if (callback && transcript) {
-        await callback(transcript, audioBlob);
+      if (transcript && onLiveStopAndTranscribe) {
+        await onLiveStopAndTranscribe(transcript, audioBlob);
+        setPhase('ready');
       } else if (!transcript) {
         setError("No transcript was captured. Please try again.");
+        setPhase('idle');
+      } else {
+        setPhase('ready');
       }
     } catch (err: any) {
       setError(err.message || "Error stopping live transcription.");
       setLiveStatus('idle');
+      setPhase('idle');
     }
   };
 
@@ -206,19 +223,27 @@ export const Recorder: React.FC<RecorderProps> = ({
     }
   };
 
-  const handleProbe = () => {
-    if (transcriptionMode === 'live' && onLiveProbe) {
-      handleLiveStop(onLiveProbe);
+  const handleStopRecording = () => {
+    if (transcriptionMode === 'live') {
+      stopLiveRecording();
     } else {
-      handleBatchStop(onProbe);
+      stopBatchRecording();
     }
   };
 
-  const handleFinish = () => {
-    if (transcriptionMode === 'live' && onLiveFinish) {
-      handleLiveStop(onLiveFinish);
-    } else {
-      handleBatchStop(onFinish);
+  const handleAnalyzeProbe = async () => {
+    try {
+      await onAnalyzeProbe();
+    } catch (err: any) {
+      setError(err.message || "Analysis failed.");
+    }
+  };
+
+  const handleAnalyzeFinish = async () => {
+    try {
+      await onAnalyzeFinish();
+    } catch (err: any) {
+      setError(err.message || "Analysis failed.");
     }
   };
 
@@ -232,16 +257,21 @@ export const Recorder: React.FC<RecorderProps> = ({
 
   // ─── RENDER: PROCESSING STATE ────────────────────
 
-  if (isProcessing) {
+  if (isProcessing || phase === 'transcribing') {
+    const label = phase === 'transcribing' ? 'Transcribing audio...' : 'Analyzing responses...';
+    const desc = phase === 'transcribing'
+      ? 'Converting speech to text. This may take a moment.'
+      : 'Extracting STAR evidence and generating probes.';
+
     return (
       <div className="flex flex-col gap-6 p-8 bg-white border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
         <div className="flex items-center gap-6">
           <Loader2 className="w-6 h-6 text-black animate-spin" />
           <div className="flex-1">
-            <p className="text-sm font-black uppercase text-black tracking-tight">Analyzing responses...</p>
-            <p className="text-xs font-bold text-black/60">Gemini is extracting STAR evidence and generating probes.</p>
+            <p className="text-sm font-black uppercase text-black tracking-tight">{label}</p>
+            <p className="text-xs font-bold text-black/60">{desc}</p>
           </div>
-          {onCancelProcessing && (
+          {onCancelProcessing && phase !== 'transcribing' && (
             <Button variant="outline" size="sm" onClick={onCancelProcessing} className="bg-tertiary hover:bg-tertiary">
               <XCircle className="w-4 h-4 mr-2" /> Cancel
             </Button>
@@ -265,7 +295,8 @@ export const Recorder: React.FC<RecorderProps> = ({
         </div>
       )}
 
-      {!isRecording ? (
+      {/* PHASE: IDLE — Show Record button */}
+      {phase === 'idle' && (
         <Button
           onClick={handleStartRecording}
           size="lg"
@@ -274,7 +305,10 @@ export const Recorder: React.FC<RecorderProps> = ({
           <Mic className="w-6 h-6 mr-4 group-hover:scale-110 transition-transform" />
           {transcriptionMode === 'live' ? 'RECORD (LIVE)' : 'RECORD RESPONSE'}
         </Button>
-      ) : (
+      )}
+
+      {/* PHASE: RECORDING — Show Stop button only */}
+      {phase === 'recording' && (
         <div className="space-y-4">
           {/* Live transcript display */}
           {transcriptionMode === 'live' && (
@@ -287,36 +321,61 @@ export const Recorder: React.FC<RecorderProps> = ({
               </div>
               <div className="text-sm font-bold text-black leading-relaxed min-h-[60px] max-h-40 overflow-y-auto whitespace-pre-wrap">
                 {liveTranscript || (liveStatus === 'connecting'
-                  ? 'Establishing connection to Gemini...'
+                  ? 'Establishing connection...'
                   : 'Listening... start speaking.'
                 )}
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              onClick={handleProbe}
-              variant="secondary"
-              className="h-20 bg-secondary text-black border-[3px] border-black"
-            >
-              <Zap className="w-5 h-5 mr-2 text-black fill-black" />
-              ANALYZE & PROBE
-            </Button>
-            <Button
-              onClick={handleFinish}
-              variant="primary"
-              className="h-20 bg-black text-white"
-            >
-              <Square className="w-4 h-4 mr-2 fill-white" />
-              FINISH QUESTION
-            </Button>
-            <div className="col-span-2 flex items-center justify-center py-2">
-              <div className="inline-flex items-center gap-3 px-4 py-2 bg-secondary border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <span className={`w-3 h-3 animate-pulse ${transcriptionMode === 'live' ? 'bg-main' : 'bg-black'}`}></span>
-                <span className="text-[12px] font-black text-black tabular-nums uppercase tracking-widest">{formatTime(timer)} recording</span>
-              </div>
+          {/* Stop Recording button — full width */}
+          <Button
+            onClick={handleStopRecording}
+            variant="primary"
+            className="w-full h-20 bg-black text-white text-xl"
+          >
+            <Square className="w-5 h-5 mr-3 fill-white" />
+            STOP RECORDING
+          </Button>
+
+          {/* Timer */}
+          <div className="flex items-center justify-center py-2">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-secondary border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <span className={`w-3 h-3 animate-pulse ${transcriptionMode === 'live' ? 'bg-main' : 'bg-black'}`}></span>
+              <span className="text-[12px] font-black text-black tabular-nums uppercase tracking-widest">{formatTime(timer)} recording</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PHASE: READY — Show Record More, Analyze & Probe, End Question */}
+      {phase === 'ready' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Button
+              onClick={handleStartRecording}
+              variant="outline"
+              className="h-20 bg-white text-black border-[3px] border-black flex flex-col items-center justify-center gap-1"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Record More</span>
+            </Button>
+            <Button
+              onClick={handleAnalyzeProbe}
+              variant="secondary"
+              className="h-20 bg-secondary text-black border-[3px] border-black flex flex-col items-center justify-center gap-1"
+            >
+              <Zap className="w-5 h-5 fill-black" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Analyze & Probe</span>
+            </Button>
+            <Button
+              onClick={handleAnalyzeFinish}
+              variant="primary"
+              className="h-20 bg-black text-white flex flex-col items-center justify-center gap-1"
+            >
+              <Square className="w-4 h-4 fill-white" />
+              <span className="text-[10px] font-black uppercase tracking-wider">End Question</span>
+            </Button>
           </div>
         </div>
       )}

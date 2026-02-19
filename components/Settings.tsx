@@ -211,125 +211,176 @@ export const Settings: React.FC = () => {
             </div>
             <div className="p-6 space-y-6">
 
-              {/* Provider Selector */}
-              <div className="grid grid-cols-2 gap-6">
-                <button
-                  onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 ${settings.provider === 'openrouter'
-                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
-                    : 'bg-white hover:bg-slate-50'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe className={`w-5 h-5 text-black`} />
-                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>OpenRouter (Recommended)</span>
-                  </div>
-                  <p className="text-xs text-black font-bold leading-relaxed">Access top-tier models (Claude 3.5, GPT-4o, Gemini 1.5 Pro) with Sarvam transcription.</p>
-                </button>
-
-                <button
-                  onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-2.5-flash' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all hidden ${settings.provider === 'google'
-                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
-                    : 'bg-white hover:bg-slate-50'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className={`w-5 h-5 text-black shadow-none`} />
-                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>Google Gemini</span>
-                  </div>
-                  <p className="text-xs text-black font-bold leading-relaxed">Native integration with Google's latest models.</p>
-                </button>
-
-                <button
-                  onClick={() => updateSettings({ provider: 'sarvam', modelName: 'saaras:v1' })}
-                  className={`p-6 border-[3px] border-black text-left transition-all col-span-2 hidden ${settings.provider === 'sarvam'
-                    ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
-                    : 'bg-white hover:bg-slate-50'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className={`w-5 h-5 text-black`} />
-                    <span className={`text-sm font-black uppercase tracking-tight text-black`}>Sarvam AI</span>
-                  </div>
-                  <p className="text-xs text-black font-bold leading-relaxed">Transcription only mode (No analysis).</p>
-                </button>
-              </div>
-
-              {/* Dynamic Connection Inputs */}
-              {settings.provider === 'google' ? (
-                <div className="space-y-4 pt-6 border-t-[3px] border-black">
-                  {/* @ts-ignore */}
-                  {window.aistudio ? (
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                      <div className="flex-1 space-y-2">
-                        <h3 className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
-                          <Key className="w-4 h-4 text-black" /> Google API Key
-                        </h3>
-                        <p className="text-xs text-black font-bold leading-relaxed">
-                          Using the API key selected in Google AI Studio.
-                        </p>
-                      </div>
-                      <Button
-                        variant={isApiKeyConnected ? "outline" : "primary"}
-                        size="md"
-                        onClick={handleConnectKey}
-                        className="w-full md:w-auto shrink-0"
-                      >
-                        {isApiKeyConnected ? "Change API Key" : "Connect API Key"}
-                      </Button>
+              {/* If authenticated via passcode, show simplified connected state */}
+              {settings.isAuthenticated && settings.openRouterApiKey && settings.sarvamApiKey ? (
+                <div className="space-y-4">
+                  <div className="bg-main/20 border-[3px] border-black p-6 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-main border-[3px] border-black flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                      <Check className="w-6 h-6 text-black" />
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
-                          <Key className="w-4 h-4 text-black" /> Google API Key
-                        </label>
-                        <p className="text-xs text-black font-bold">
-                          Enter your Gemini API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-blue-600 underline decoration-2">Google AI Studio</a>.
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-black text-black uppercase tracking-tight">Authenticated via Passcode</p>
+                      <p className="text-xs font-bold text-black/60">OpenRouter + Sarvam keys are loaded. Using model: <code className="bg-black/10 px-1">{settings.modelName}</code></p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-black uppercase tracking-tight">Model Name</label>
+                    <div className="relative">
+                      <Settings2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black z-10" />
                       <input
-                        type="password"
-                        value={settings.googleApiKey}
-                        onChange={(e) => updateSettings({ googleApiKey: e.target.value })}
-                        placeholder="AIza..."
-                        className="neo-brutalism-input text-sm"
+                        type="text"
+                        value={settings.modelName}
+                        onChange={(e) => updateSettings({ modelName: e.target.value })}
+                        className="neo-brutalism-input pl-12 text-sm"
+                        placeholder="google/gemini-3-flash-preview"
                       />
                     </div>
-                  )}
+                  </div>
                 </div>
-              ) : settings.provider === 'openrouter' ? (
-                <div className="space-y-4 pt-6 border-t-[3px] border-black">
-                  <div className="space-y-2">
-                    <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
-                      <Key className="w-4 h-4 text-black" /> OpenRouter API Key
-                    </label>
-                    <p className="text-xs text-black font-bold">
-                      Get your key from <a href="https://openrouter.ai/keys" target="_blank" className="text-purple-600 underline decoration-2">openrouter.ai/keys</a>.
-                    </p>
+              ) : (
+                /* Full manual provider/key UI */
+                <>
+                  {/* Provider Selector */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <button
+                      onClick={() => updateSettings({ provider: 'openrouter', modelName: 'google/gemini-3-flash-preview' })}
+                      className={`p-6 border-[3px] border-black text-left transition-all col-span-2 ${settings.provider === 'openrouter'
+                        ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                        : 'bg-white hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className={`w-5 h-5 text-black`} />
+                        <span className={`text-sm font-black uppercase tracking-tight text-black`}>OpenRouter (Recommended)</span>
+                      </div>
+                      <p className="text-xs text-black font-bold leading-relaxed">Access top-tier models (Claude 3.5, GPT-4o, Gemini 1.5 Pro) with Sarvam transcription.</p>
+                    </button>
+
+                    <button
+                      onClick={() => settings.provider !== 'google' && updateSettings({ provider: 'google', modelName: 'gemini-2.5-flash' })}
+                      className={`p-6 border-[3px] border-black text-left transition-all hidden ${settings.provider === 'google'
+                        ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                        : 'bg-white hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className={`w-5 h-5 text-black shadow-none`} />
+                        <span className={`text-sm font-black uppercase tracking-tight text-black`}>Google Gemini</span>
+                      </div>
+                      <p className="text-xs text-black font-bold leading-relaxed">Native integration with Google's latest models.</p>
+                    </button>
+
+                    <button
+                      onClick={() => updateSettings({ provider: 'sarvam', modelName: 'saaras:v1' })}
+                      className={`p-6 border-[3px] border-black text-left transition-all col-span-2 hidden ${settings.provider === 'sarvam'
+                        ? 'bg-main translate-x-[-4px] translate-y-[-4px] shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
+                        : 'bg-white hover:bg-slate-50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className={`w-5 h-5 text-black`} />
+                        <span className={`text-sm font-black uppercase tracking-tight text-black`}>Sarvam AI</span>
+                      </div>
+                      <p className="text-xs text-black font-bold leading-relaxed">Transcription only mode (No analysis).</p>
+                    </button>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      value={settings.openRouterApiKey}
-                      onChange={(e) => updateSettings({ openRouterApiKey: e.target.value })}
-                      placeholder="sk-or-..."
-                      className="neo-brutalism-input text-sm"
-                    />
-                  </div>
-                  {settings.provider === 'openrouter' && (
-                    <div className="mt-4 pt-4 border-t-2 border-black/10">
-                      <p className="text-[10px] text-black font-bold bg-secondary p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
-                        <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-3-flash-preview</code>).
-                      </p>
+
+                  {/* Dynamic Connection Inputs */}
+                  {settings.provider === 'google' ? (
+                    <div className="space-y-4 pt-6 border-t-[3px] border-black">
+                      {/* @ts-ignore */}
+                      {window.aistudio ? (
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                          <div className="flex-1 space-y-2">
+                            <h3 className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
+                              <Key className="w-4 h-4 text-black" /> Google API Key
+                            </h3>
+                            <p className="text-xs text-black font-bold leading-relaxed">
+                              Using the API key selected in Google AI Studio.
+                            </p>
+                          </div>
+                          <Button
+                            variant={isApiKeyConnected ? "outline" : "primary"}
+                            size="md"
+                            onClick={handleConnectKey}
+                            className="w-full md:w-auto shrink-0"
+                          >
+                            {isApiKeyConnected ? "Change API Key" : "Connect API Key"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
+                              <Key className="w-4 h-4 text-black" /> Google API Key
+                            </label>
+                            <p className="text-xs text-black font-bold">
+                              Enter your Gemini API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-blue-600 underline decoration-2">Google AI Studio</a>.
+                            </p>
+                          </div>
+                          <input
+                            type="password"
+                            value={settings.googleApiKey}
+                            onChange={(e) => updateSettings({ googleApiKey: e.target.value })}
+                            placeholder="AIza..."
+                            className="neo-brutalism-input text-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : settings.provider === 'openrouter' ? (
+                    <div className="space-y-4 pt-6 border-t-[3px] border-black">
                       <div className="space-y-2">
                         <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
-                          <Key className="w-4 h-4 text-black" /> Sarvam API Key (For Live Mode)
+                          <Key className="w-4 h-4 text-black" /> OpenRouter API Key
                         </label>
-                        <p className="text-xs text-black font-bold opacity-60">
-                          Required if you want to use Live Transcription while using OpenRouter.
+                        <p className="text-xs text-black font-bold">
+                          Get your key from <a href="https://openrouter.ai/keys" target="_blank" className="text-purple-600 underline decoration-2">openrouter.ai/keys</a>.
                         </p>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="password"
+                          value={settings.openRouterApiKey}
+                          onChange={(e) => updateSettings({ openRouterApiKey: e.target.value })}
+                          placeholder="sk-or-..."
+                          className="neo-brutalism-input text-sm"
+                        />
+                      </div>
+                      {settings.provider === 'openrouter' && (
+                        <div className="mt-4 pt-4 border-t-2 border-black/10">
+                          <p className="text-[10px] text-black font-bold bg-secondary p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-4">
+                            <span className="font-black">Note:</span> You must choose a model that supports audio/image inputs (e.g., <code>google/gemini-3-flash-preview</code>).
+                          </p>
+                          <div className="space-y-2">
+                            <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
+                              <Key className="w-4 h-4 text-black" /> Sarvam API Key (For Live Mode)
+                            </label>
+                            <p className="text-xs text-black font-bold opacity-60">
+                              Required if you want to use Live Transcription while using OpenRouter.
+                            </p>
+                            <input
+                              type="password"
+                              value={settings.sarvamApiKey}
+                              onChange={(e) => updateSettings({ sarvamApiKey: e.target.value })}
+                              placeholder="api-key-..."
+                              className="neo-brutalism-input text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4 pt-6 border-t-[3px] border-black">
+                      <div className="space-y-2">
+                        <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
+                          <Key className="w-4 h-4 text-black" /> Sarvam AI API Key
+                        </label>
+                        <p className="text-xs text-black font-bold">
+                          Get your key from <a href="https://sarvam.ai" target="_blank" className="text-orange-600 underline decoration-2">Sarvam AI Dashboard</a>.
+                        </p>
+                      </div>
+                      <div className="relative">
                         <input
                           type="password"
                           value={settings.sarvamApiKey}
@@ -340,27 +391,7 @@ export const Settings: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="space-y-4 pt-6 border-t-[3px] border-black">
-                  <div className="space-y-2">
-                    <label className="text-sm font-black text-black uppercase tracking-tight flex items-center gap-2">
-                      <Key className="w-4 h-4 text-black" /> Sarvam AI API Key
-                    </label>
-                    <p className="text-xs text-black font-bold">
-                      Get your key from <a href="https://sarvam.ai" target="_blank" className="text-orange-600 underline decoration-2">Sarvam AI Dashboard</a>.
-                    </p>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      value={settings.sarvamApiKey}
-                      onChange={(e) => updateSettings({ sarvamApiKey: e.target.value })}
-                      placeholder="api-key-..."
-                      className="neo-brutalism-input text-sm"
-                    />
-                  </div>
-                </div>
+                </>
               )}
             </div>
           </section>
