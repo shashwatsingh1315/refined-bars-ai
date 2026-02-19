@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AppSettings, InterviewResult, RubricItem, InterviewContextType } from '../types';
+import { defaultRubric } from '../data/defaultRubric';
 
 const defaultSettings: AppSettings = {
   provider: 'openrouter',
@@ -37,7 +38,7 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [rubric, setRubric] = useState<RubricItem[]>(() => {
     try {
       const saved = localStorage.getItem('bars_rubric');
-      return saved ? JSON.parse(saved) : [];
+      return saved ? JSON.parse(saved) : defaultRubric;
     } catch (e) {
       console.error("Failed to parse rubric:", e);
       return [];
@@ -67,7 +68,7 @@ export const InterviewProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [fullRubric, setFullRubric] = useState<RubricItem[]>(() => {
     try {
       const saved = localStorage.getItem('bars_fullRubric');
-      return saved ? JSON.parse(saved) : [];
+      return saved ? JSON.parse(saved) : defaultRubric;
     } catch (e) {
       console.error("Failed to parse fullRubric:", e);
       return [];
